@@ -1,0 +1,89 @@
+{
+  "name": "elixir-test-explorer",
+  "displayName": "Elixir Test Explorer",
+  "description": "Run Elixir tests in the Sidebar of Visual Studio Code",
+  "icon": "images/icon.png",
+  "author": "Adam Zapaśnik <contact@adamzapasnik.io>",
+  "publisher": "adamzapasnik",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.52.0"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/adamzapasnik/vscode-elixir-test-explorer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adamzapasnik/vscode-elixir-test-explorer"
+  },
+  "bugs": {
+    "url": "https://github.com/adamzapasnik/vscode-elixir-test-explorer/issues"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "test",
+    "testing",
+    "exunit",
+    "elixir",
+    "test explorer",
+    "test adapter"
+  ],
+  "activationEvents": [
+    "onLanguage:elixir",
+    "workspaceContains:**/mix.exs",
+    "workspaceContains:**/*.ex"
+  ],
+  "main": "./out/main.js",
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "Elixir Test Explorer configuration",
+      "properties": {
+        "elixirTestExplorer.enable": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Control whether or not Elixir Test Explorer is enabled."
+        },
+        "elixirTestExplorer.projectDir": {
+          "scope": "resource",
+          "type": "string",
+          "description": "Project dir",
+          "default": ""
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "yarn run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "yarn run compile && yarn run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^7.1.3",
+    "@types/mocha": "^8.2.0",
+    "@types/node": "^14.14.21",
+    "@types/vscode": "^1.52.0",
+    "@typescript-eslint/eslint-plugin": "^4.13.0",
+    "@typescript-eslint/parser": "^4.13.0",
+    "eslint": "^7.18.0",
+    "eslint-config-prettier": "^7.1.0",
+    "eslint-plugin-prettier": "^3.3.1",
+    "glob": "^7.1.6",
+    "mocha": "^8.2.1",
+    "prettier": "^2.2.1",
+    "typescript": "^4.1.3",
+    "vscode-test": "^1.4.1"
+  },
+  "extensionDependencies": [
+    "hbenl.vscode-test-explorer"
+  ],
+  "dependencies": {
+    "vscode-test-adapter-api": "^1.9.0",
+    "vscode-test-adapter-util": "^0.7.1"
+  }
+}
