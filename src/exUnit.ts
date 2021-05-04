@@ -81,20 +81,20 @@ export class ExUnit {
 
   private fetchTests(projectDir: string, path = ''): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-      this.currentProcess = childProcess.exec(
-        `mix test --trace --seed=0 --only="" ${path}`,
-        { cwd: projectDir },
-        (err, stdout, stderr) => {
-          // Everything is alright
-          if (stderr.trim() === 'The --only option was given to "mix test" but no test was executed') {
-            return resolve(stdout);
-          } else if (stdout.trim().includes('== Compilation error in file')) {
-            return reject(stderr + '\n' + stdout);
-          }
+      const command = `mix test --trace --seed=0 --only="" ${path}`;
 
-          return reject(err?.message);
+      this.currentProcess = childProcess.exec(command, { cwd: projectDir }, (err, stdout, stderr) => {
+        // Everything is alright
+        if (stderr.trim() === 'The --only option was given to "mix test" but no test was executed') {
+          return resolve(stdout);
+        } else if (stdout.trim().includes('== Compilation error in file')) {
+          return reject(stderr + '\n' + stdout);
+        } else if (stdout.trim().includes('Finished in')) {
+          return resolve(stdout);
         }
-      );
+
+        return reject(err?.message);
+      });
     });
   }
 
@@ -103,6 +103,10 @@ export class ExUnit {
       const path = nodeId === 'root' ? '' : nodeId;
 
       this.currentProcess = childProcess.exec(`mix test ${path}`, { cwd: projectDir }, (err, stdout, stderr) => {
+        if (stdout.trim().includes('Finished in')) {
+          return resolve(stdout);
+        }
+
         if (stdout.trim().includes('== Compilation error in file')) {
           return reject(stderr + '\n' + stdout);
         }
