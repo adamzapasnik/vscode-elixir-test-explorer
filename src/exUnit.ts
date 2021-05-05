@@ -11,28 +11,28 @@ interface TestResult {
 }
 
 export class ExUnit {
-  private tests: TestSuiteInfo;
-  private workspace: vscode.WorkspaceFolder;
+  private recentlyRunTests: TestSuiteInfo;
+  private workspaceName: string;
   private currentProcess: childProcess.ChildProcess | undefined;
 
-  constructor(workspace: vscode.WorkspaceFolder) {
-    this.workspace = workspace;
-    this.tests = this.rootSuite();
+  constructor(workspaceName: string) {
+    this.workspaceName = workspaceName;
+    this.recentlyRunTests = this.rootSuite();
   }
 
   async reloadTests(projectDir: string): Promise<{ tests?: TestSuiteInfo; error?: string }> {
     try {
-      this.tests = await this.loadTests(projectDir);
+      this.recentlyRunTests = await this.loadTests(projectDir);
 
-      return { tests: this.tests };
+      return { tests: this.recentlyRunTests };
     } catch (error) {
-      return { error, tests: this.tests };
+      return { error, tests: this.recentlyRunTests };
     }
   }
 
   async reloadTest(projectDir: string, path: string): Promise<{ tests?: TestSuiteInfo; error?: string }> {
     const nodeId = path.replace(projectDir, '').slice(1);
-    const node = this.findNode(this.tests, nodeId);
+    const node = this.findNode(this.recentlyRunTests, nodeId);
 
     // if we found a node, we can just replace it
     // if we didn't we have to load all tests again? When would that happen? I don't know, just in case.
@@ -46,9 +46,9 @@ export class ExUnit {
           node.id = testSuite.id;
         }
 
-        return { tests: this.tests };
+        return { tests: this.recentlyRunTests };
       } catch (error) {
-        return { error, tests: this.tests };
+        return { error, tests: this.recentlyRunTests };
       }
     } else {
       return this.reloadTests(projectDir);
@@ -63,7 +63,7 @@ export class ExUnit {
     try {
       const isLineTest = /\:\d+$/.test(nodeId);
       const stdout = await this.fetchTestResults(projectDir, nodeId);
-      const node = this.findNode(this.tests, nodeId);
+      const node = this.findNode(this.recentlyRunTests, nodeId);
       const parseFunction = isLineTest ? parseLineTestErrors : parseTestErrors;
       const testErrors = parseFunction(stdout, nodeId);
       const testResults = this.generateTestResults(node!, testErrors);
@@ -76,7 +76,7 @@ export class ExUnit {
   private async loadTests(projectDir: string, path: string = ''): Promise<TestSuiteInfo> {
     const stdout = await this.fetchTests(projectDir, path);
     const testsMap = parseTests(projectDir, stdout);
-    return this.buildTestSuite(testsMap);
+    return this.buildTestSuite(projectDir, testsMap);
   }
 
   private fetchTests(projectDir: string, path = ''): Promise<string> {
@@ -120,8 +120,13 @@ export class ExUnit {
     });
   }
 
-  private buildTestSuite(testsMap: Map<string, Array<TestInfo>>): TestSuiteInfo {
-    const formattedTests: TestSuiteInfo = this.rootSuite();
+  private buildTestSuite(testDir: string, testsMap: Map<string, Array<TestInfo>>): TestSuiteInfo {
+    const formattedTests: TestSuiteInfo = {
+      type: 'suite',
+      id: testDir,
+      label: path.parse(testDir).name,
+      children: [],
+    };
 
     let currentSuite: TestSuiteInfo = formattedTests;
     let currentPath = '';
@@ -206,6 +211,6 @@ export class ExUnit {
   }
 
   private rootSuite(): TestSuiteInfo {
-    return { type: 'suite', id: 'root', label: `${this.workspace.name} ExUnit`, children: [] };
+    return { type: 'suite', id: 'root', label: `${this.workspaceName} ExUnit`, children: [] };
   }
 }

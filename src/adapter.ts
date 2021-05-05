@@ -13,9 +13,11 @@ import { ExUnit } from './exUnit';
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { scanProjects } from './utils/scanProjects';
 
 export class ExUnitAdapter implements TestAdapter {
   private disposables: { dispose(): void }[] = [];
+  private isLoadingTests = false;
 
   private readonly testsEmitter = new vscode.EventEmitter<TestLoadStartedEvent | TestLoadFinishedEvent>();
   private readonly testStatesEmitter = new vscode.EventEmitter<
@@ -38,7 +40,7 @@ export class ExUnitAdapter implements TestAdapter {
   constructor(public readonly workspace: vscode.WorkspaceFolder, private readonly log: Log) {
     this.log.info('Initializing ExUnit adapter');
 
-    this.exUnit = new ExUnit(workspace);
+    this.exUnit = new ExUnit(workspace.name);
 
     this.disposables.push(this.testsEmitter);
     this.disposables.push(this.testStatesEmitter);
@@ -71,25 +73,58 @@ export class ExUnitAdapter implements TestAdapter {
   }
 
   async load(): Promise<void> {
-    this.log.info('Loading tests');
+    if (this.isLoadingTests) {
+      return;
+    }
 
-    const mixPath = path.join(this.getProjectDir(), 'mix.exs');
-    const testsPath = path.join(this.getProjectDir(), 'test');
-
-    if (!this.isAdapterEnabled() || !fs.existsSync(mixPath) || !fs.existsSync(testsPath)) {
+    if (!this.isAdapterEnabled()) {
       this.log.info('Skipped loading');
       return;
     }
 
+    this.log.info('Loading tests');
+
+    const projects = scanProjects(this.workspace.uri.fsPath);
+    this.log.info('Found projects:', projects);
+
+    this.isLoadingTests = true;
     this.testsEmitter.fire(<TestLoadStartedEvent>{ type: 'started' });
 
-    const { tests, error } = await this.exUnit.reloadTests(this.getProjectDir());
+    try {
+      const results = await Promise.all(
+        projects.map(async (projectDir) => {
+          const { tests, error } = await this.exUnit.reloadTests(projectDir);
+          this.log.info('Executed', tests);
+          return {
+            tests: tests,
+            error: error,
+            projectDir: projectDir,
+          };
+        })
+      );
 
-    this.testsEmitter.fire(<TestLoadFinishedEvent>{
-      type: 'finished',
-      suite: error ? undefined : tests,
-      errorMessage: error,
-    });
+      const hasErrors = results.filter((suite) => suite.error).length === 0 ? true : false;
+      const suites = results.map((suite) => suite.tests);
+
+      const testLoadFinishedEvent = {
+        type: 'finished',
+        suite: {
+          id: 'root',
+          type: 'suite',
+          label: 'ExUnit',
+          children: suites,
+          errored: hasErrors,
+        },
+        errorMessage: hasErrors ? 'Something failed when running the tests' : undefined,
+      };
+
+      this.log.info('TestLoadFinished', testLoadFinishedEvent);
+      this.testsEmitter.fire(<TestLoadFinishedEvent>testLoadFinishedEvent);
+    } catch (exception) {
+      this.testsEmitter.fire({ type: 'finished', errorMessage: `Failed parsing projects: ${exception}` });
+    } finally {
+      this.isLoadingTests = false;
+    }
   }
 
   async run(tests: string[]): Promise<void> {
