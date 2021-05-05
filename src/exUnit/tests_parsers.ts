@@ -5,7 +5,7 @@ export interface TestErrors {
   [key: string]: string;
 }
 
-export function parseTests(projectDir: string, stdout: string): Map<string, Array<TestInfo>> {
+export function parseTests(appDir: string, stdout: string): Map<string, Array<TestInfo>> {
   const testsMap = new Map();
   const tests = stdout
     .split('Including tags: [:""]')[1] // compilation and other noise before
@@ -29,7 +29,7 @@ export function parseTests(projectDir: string, stdout: string): Map<string, Arra
         type: 'test',
         id: `${testFilePath}:${line}`,
         label: testType === 'doctest' ? 'doctest' : parts.join(' '),
-        file: path.join(projectDir, testFilePath),
+        file: path.join(appDir, testFilePath),
         line: line - 1,
       };
     });
@@ -50,21 +50,21 @@ export function parseTestErrors(stdout: string): TestErrors {
     .split(/\n\s*\n/)
     .filter((possibleError) => possibleError.trim().match(/^\d+\)/))
     .map((error) => {
-      const path = error
+      const testPath = error
         .split('\n')
         .find((line) => line.match(/\.exs:\d+/))!
         .trim();
-      return [path, error];
+      return [testPath, error];
     });
 
   const errorsHash: TestErrors = {};
 
-  for (const [path, error] of errors) {
-    if (path) {
-      if (errorsHash[path]) {
-        errorsHash[path] += `\n${error}`;
+  for (const [testPath, error] of errors) {
+    if (testPath) {
+      if (errorsHash[testPath]) {
+        errorsHash[testPath] += `\n${error}`;
       } else {
-        errorsHash[path] = error;
+        errorsHash[testPath] = error;
       }
     }
   }
@@ -72,6 +72,6 @@ export function parseTestErrors(stdout: string): TestErrors {
   return errorsHash;
 }
 
-export function parseLineTestErrors(path: string, stdout: string): TestErrors {
-  return stdout.includes(path) ? { [path]: stdout } : {};
+export function parseLineTestErrors(testPath: string, stdout: string): TestErrors {
+  return stdout.includes(testPath) ? { [testPath]: stdout } : {};
 }

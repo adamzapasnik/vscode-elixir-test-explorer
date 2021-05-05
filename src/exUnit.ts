@@ -12,17 +12,21 @@ interface TestResult {
 
 export class ExUnit {
   private tests: TestSuiteInfo;
-  private workspace: vscode.WorkspaceFolder;
+  public appDir: string;
+  public appName: string;
+  private isUmbrella: boolean;
   private currentProcess: childProcess.ChildProcess | undefined;
 
-  constructor(workspace: vscode.WorkspaceFolder) {
-    this.workspace = workspace;
-    this.tests = this.rootSuite();
+  constructor(appDir: string, isUmbrella: boolean = false) {
+    this.appDir = appDir;
+    this.appName = path.parse(this.appDir).name;
+    this.isUmbrella = false;
+    this.tests = this.appSuite();
   }
 
-  async reloadTests(projectDir: string): Promise<{ tests?: TestSuiteInfo; error?: string }> {
+  async reloadTests(): Promise<{ tests?: TestSuiteInfo; error?: string }> {
     try {
-      this.tests = await this.loadTests(projectDir);
+      this.tests = await this.loadTests();
 
       return { tests: this.tests };
     } catch (error) {
@@ -30,16 +34,16 @@ export class ExUnit {
     }
   }
 
-  async reloadTest(projectDir: string, path: string): Promise<{ tests?: TestSuiteInfo; error?: string }> {
-    const nodeId = path.replace(projectDir, '').slice(1);
+  async reloadTest(path: string): Promise<{ tests?: TestSuiteInfo; error?: string }> {
+    const nodeId = path.replace(this.appDir, '').slice(1);
     const node = this.findNode(this.tests, nodeId);
 
     // if we found a node, we can just replace it
     // if we didn't we have to load all tests again? When would that happen? I don't know, just in case.
     if (node) {
       try {
-        const rootSuite = await this.loadTests(path, projectDir);
-        const testSuite = this.findNode(rootSuite, nodeId) as TestSuiteInfo;
+        const appSuite = await this.loadTests(path);
+        const testSuite = this.findNode(appSuite, nodeId) as TestSuiteInfo;
 
         if (node.type === 'suite') {
           node.children = testSuite.children;
@@ -51,7 +55,7 @@ export class ExUnit {
         return { error, tests: this.tests };
       }
     } else {
-      return this.reloadTests(projectDir);
+      return this.reloadTests();
     }
   }
 
@@ -59,10 +63,10 @@ export class ExUnit {
     this.currentProcess?.kill();
   }
 
-  async runTests(projectDir: string, nodeId: string): Promise<{ testResults?: TestResult[]; error?: string }> {
+  async runTests(nodeId: string): Promise<{ testResults?: TestResult[]; error?: string }> {
     try {
       const isLineTest = /\:\d+$/.test(nodeId);
-      const stdout = await this.fetchTestResults(projectDir, nodeId);
+      const stdout = await this.fetchTestResults(nodeId);
       const node = this.findNode(this.tests, nodeId);
       const parseFunction = isLineTest ? parseLineTestErrors : parseTestErrors;
       const testErrors = parseFunction(stdout, nodeId);
@@ -73,17 +77,17 @@ export class ExUnit {
     }
   }
 
-  private async loadTests(projectDir: string, path: string = ''): Promise<TestSuiteInfo> {
-    const stdout = await this.fetchTests(projectDir, path);
-    const testsMap = parseTests(projectDir, stdout);
+  private async loadTests(path: string = ''): Promise<TestSuiteInfo> {
+    const stdout = await this.fetchTests(path);
+    const testsMap = parseTests(this.appDir, stdout);
     return this.buildTestSuite(testsMap);
   }
 
-  private fetchTests(projectDir: string, path = ''): Promise<string> {
+  private fetchTests(path = ''): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       this.currentProcess = childProcess.exec(
         `mix test --trace --seed=0 --only="" ${path}`,
-        { cwd: projectDir },
+        { cwd: this.appDir },
         (err, stdout, stderr) => {
           // Everything is alright
           if (stderr.trim() === 'The --only option was given to "mix test" but no test was executed') {
@@ -98,11 +102,11 @@ export class ExUnit {
     });
   }
 
-  private async fetchTestResults(projectDir: string, nodeId: string) {
+  private async fetchTestResults(nodeId: string) {
     return new Promise<string>((resolve, reject) => {
       const path = nodeId === 'root' ? '' : nodeId;
 
-      this.currentProcess = childProcess.exec(`mix test ${path}`, { cwd: projectDir }, (err, stdout, stderr) => {
+      this.currentProcess = childProcess.exec(`mix test ${path}`, { cwd: this.appDir }, (err, stdout, stderr) => {
         if (stdout.trim().includes('== Compilation error in file')) {
           return reject(stderr + '\n' + stdout);
         }
@@ -117,10 +121,10 @@ export class ExUnit {
   }
 
   private buildTestSuite(testsMap: Map<string, Array<TestInfo>>): TestSuiteInfo {
-    const formattedTests: TestSuiteInfo = this.rootSuite();
+    const formattedTests: TestSuiteInfo = this.appSuite();
 
     let currentSuite: TestSuiteInfo = formattedTests;
-    let currentPath = '';
+    let currentPath = this.isUmbrella ? `${path.parse(this.appDir).name}/` : '';
 
     for (const [key, value] of testsMap) {
       if (!key) {
@@ -128,7 +132,7 @@ export class ExUnit {
       }
 
       currentSuite = formattedTests;
-      currentPath = '';
+      currentPath = this.isUmbrella ? `${path.parse(this.appDir).name}/` : '';
       const paths = key.split('/');
 
       for (const [index, filePath] of paths.entries()) {
@@ -188,11 +192,13 @@ export class ExUnit {
   }
 
   private findNode(searchNode: TestSuiteInfo | TestInfo, id: string): TestSuiteInfo | TestInfo | undefined {
-    if (searchNode.id === id) {
+    const internalId = id === 'root' ? this.appDir : id;
+
+    if (searchNode.id === internalId) {
       return searchNode;
     } else if (searchNode.type === 'suite') {
       for (const child of searchNode.children) {
-        const found = this.findNode(child, id);
+        const found = this.findNode(child, internalId);
         if (found) {
           return found;
         }
@@ -201,7 +207,7 @@ export class ExUnit {
     return undefined;
   }
 
-  private rootSuite(): TestSuiteInfo {
-    return { type: 'suite', id: 'root', label: `${this.workspace.name} ExUnit`, children: [] };
+  private appSuite(): TestSuiteInfo {
+    return { type: 'suite', id: this.appDir, label: `${path.parse(this.appDir).name} ExUnit`, children: [] };
   }
 }
