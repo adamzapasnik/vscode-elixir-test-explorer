@@ -1,8 +1,7 @@
-import * as vscode from 'vscode';
-import * as childProcess from 'child_process';
 import * as path from 'path';
-import { TestSuiteInfo, TestInfo } from 'vscode-test-adapter-api';
-import { parseLineTestErrors, parseTestErrors, parseTests, TestErrors } from './exUnit/tests_parsers';
+import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
+import { MixRunner } from './MixRunner';
+import { parseLineTestErrors, parseTestErrors, parseTests as parseMixOutput, TestErrors } from './utils/tests_parsers';
 
 interface TestResult {
   state: 'failed' | 'passed';
@@ -10,17 +9,48 @@ interface TestResult {
   error?: 'string';
 }
 
-export class ExUnit {
-  private recentlyRunTests: TestSuiteInfo;
+interface TestSuiteResult {
+  tests?: TestSuiteInfo;
+  error?: string;
+}
+
+export class ExUnitRunner {
+  public recentlyRunTests: TestSuiteInfo;
   private workspaceName: string;
-  private currentProcess: childProcess.ChildProcess | undefined;
+  private mix: MixRunner;
 
   constructor(workspaceName: string) {
+    this.mix = new MixRunner();
     this.workspaceName = workspaceName;
     this.recentlyRunTests = this.rootSuite();
   }
 
-  async reloadTests(projectDir: string): Promise<{ tests?: TestSuiteInfo; error?: string }> {
+  cancelProcess() {
+    this.mix.kill();
+  }
+
+  async loadAll(testDirs: string[]): Promise<{ suites: (TestSuiteInfo | undefined)[]; hasErrors: boolean }> {
+    const results = await Promise.all(
+      testDirs.map(async (testDir) => {
+        const { tests, error } = await this.reloadTests(testDir);
+        return {
+          tests: tests,
+          error: error,
+          projectDir: testDir,
+        };
+      })
+    );
+
+    const hasErrors = results.filter((suite) => suite.error).length === 0 ? false : true;
+    const suites = results.map((suite) => suite.tests);
+
+    return {
+      suites: suites,
+      hasErrors: hasErrors,
+    };
+  }
+
+  async reloadTests(projectDir: string): Promise<TestSuiteResult> {
     try {
       this.recentlyRunTests = await this.loadTests(projectDir);
 
@@ -30,7 +60,7 @@ export class ExUnit {
     }
   }
 
-  async reloadTest(projectDir: string, path: string): Promise<{ tests?: TestSuiteInfo; error?: string }> {
+  async reloadTest(projectDir: string, path: string): Promise<TestSuiteResult> {
     const nodeId = path.replace(projectDir, '').slice(1);
     const node = this.findNode(this.recentlyRunTests, nodeId);
 
@@ -55,14 +85,10 @@ export class ExUnit {
     }
   }
 
-  cancelProcess() {
-    this.currentProcess?.kill();
-  }
-
   async runTests(projectDir: string, nodeId: string): Promise<{ testResults?: TestResult[]; error?: string }> {
     try {
       const isLineTest = /\:\d+$/.test(nodeId);
-      const stdout = await this.fetchTestResults(projectDir, nodeId);
+      const stdout = await this.mix.runSingleTest(projectDir, nodeId);
       const node = this.findNode(this.recentlyRunTests, nodeId);
       const parseFunction = isLineTest ? parseLineTestErrors : parseTestErrors;
       const testErrors = parseFunction(stdout, nodeId);
@@ -74,52 +100,15 @@ export class ExUnit {
   }
 
   private async loadTests(projectDir: string, path: string = ''): Promise<TestSuiteInfo> {
-    const stdout = await this.fetchTests(projectDir, path);
-    const testsMap = parseTests(projectDir, stdout);
+    const stdout = await this.mix.run(projectDir, path);
+    const testsMap = parseMixOutput(projectDir, stdout);
+
+    console.log(testsMap);
+
     return this.buildTestSuite(projectDir, testsMap);
   }
 
-  private fetchTests(projectDir: string, path = ''): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      const command = `mix test --trace --seed=0 --only="" ${path}`;
-
-      this.currentProcess = childProcess.exec(command, { cwd: projectDir }, (err, stdout, stderr) => {
-        // Everything is alright
-        if (stderr.trim() === 'The --only option was given to "mix test" but no test was executed') {
-          return resolve(stdout);
-        } else if (stdout.trim().includes('== Compilation error in file')) {
-          return reject(stderr + '\n' + stdout);
-        } else if (stdout.trim().includes('Finished in')) {
-          return resolve(stdout);
-        }
-
-        return reject(err?.message);
-      });
-    });
-  }
-
-  private async fetchTestResults(projectDir: string, nodeId: string) {
-    return new Promise<string>((resolve, reject) => {
-      const path = nodeId === 'root' ? '' : nodeId;
-
-      this.currentProcess = childProcess.exec(`mix test ${path}`, { cwd: projectDir }, (err, stdout, stderr) => {
-        if (stdout.trim().includes('Finished in')) {
-          return resolve(stdout);
-        }
-
-        if (stdout.trim().includes('== Compilation error in file')) {
-          return reject(stderr + '\n' + stdout);
-        }
-
-        if (stderr.trim()) {
-          return reject(stderr);
-        }
-
-        return resolve(stdout);
-      });
-    });
-  }
-
+  // TODO: rewrite completely
   private buildTestSuite(testDir: string, testsMap: Map<string, Array<TestInfo>>): TestSuiteInfo {
     const formattedTests: TestSuiteInfo = {
       type: 'suite',
@@ -180,6 +169,7 @@ export class ExUnit {
     return formattedTests;
   }
 
+  // TODO: replace with graph abstraction
   private generateTestResults(node: TestSuiteInfo | TestInfo, errors: TestErrors) {
     let currentResults: TestResult[] = [];
     if (node.type === 'suite') {
@@ -196,6 +186,7 @@ export class ExUnit {
     return currentResults;
   }
 
+  // TODO: remove through graph abstraction
   private findNode(searchNode: TestSuiteInfo | TestInfo, id: string): TestSuiteInfo | TestInfo | undefined {
     if (searchNode.id === id) {
       return searchNode;
@@ -210,6 +201,7 @@ export class ExUnit {
     return undefined;
   }
 
+  // TODO: this goes too
   private rootSuite(): TestSuiteInfo {
     return { type: 'suite', id: 'root', label: `${this.workspaceName} ExUnit`, children: [] };
   }

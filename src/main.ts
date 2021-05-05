@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { TestHub, testExplorerExtensionId } from 'vscode-test-adapter-api';
 import { Log, TestAdapterRegistrar } from 'vscode-test-adapter-util';
-import { ExUnitAdapter } from './adapter';
+import { ExUnitTestAdapter } from './ExUnitTestAdapter';
+import { ExUnitRunner } from './ExUnitRunner';
 
 export async function activate(context: vscode.ExtensionContext) {
   const workspaceFolder = (vscode.workspace.workspaceFolders || [])[0];
@@ -21,8 +22,13 @@ export async function activate(context: vscode.ExtensionContext) {
     const testHub = testExplorerExtension.exports;
 
     // this will register an ExUnitAdapter for each WorkspaceFolder
+    const exUnitRunner = new ExUnitRunner(workspaceFolder.name);
     context.subscriptions.push(
-      new TestAdapterRegistrar(testHub, (workspaceFolder) => new ExUnitAdapter(workspaceFolder, log), log)
+      new TestAdapterRegistrar(
+        testHub,
+        (workspaceFolder) => new ExUnitTestAdapter(exUnitRunner, workspaceFolder, log),
+        log
+      )
     );
   }
 }

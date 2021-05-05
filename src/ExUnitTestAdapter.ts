@@ -1,21 +1,19 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import {
   TestAdapter,
-  TestLoadStartedEvent,
-  TestLoadFinishedEvent,
-  TestRunStartedEvent,
-  TestRunFinishedEvent,
-  TestSuiteEvent,
   TestEvent,
+  TestLoadFinishedEvent,
+  TestLoadStartedEvent,
+  TestRunFinishedEvent,
+  TestRunStartedEvent,
+  TestSuiteEvent,
 } from 'vscode-test-adapter-api';
 import { Log } from 'vscode-test-adapter-util';
-import { ExUnit } from './exUnit';
-
-import * as path from 'path';
-import * as fs from 'fs';
+import { ExUnitRunner } from './ExUnitRunner';
 import { scanProjects } from './utils/scanProjects';
 
-export class ExUnitAdapter implements TestAdapter {
+export class ExUnitTestAdapter implements TestAdapter {
   private disposables: { dispose(): void }[] = [];
   private isLoadingTests = false;
 
@@ -35,12 +33,14 @@ export class ExUnitAdapter implements TestAdapter {
     return this.autorunEmitter.event;
   }
 
-  private exUnit: ExUnit;
-
-  constructor(public readonly workspace: vscode.WorkspaceFolder, private readonly log: Log) {
+  constructor(
+    private testRunner: ExUnitRunner,
+    public readonly workspace: vscode.WorkspaceFolder,
+    private readonly log: Log
+  ) {
     this.log.info('Initializing ExUnit adapter');
 
-    this.exUnit = new ExUnit(workspace.name);
+    this.testRunner = testRunner;
 
     this.disposables.push(this.testsEmitter);
     this.disposables.push(this.testStatesEmitter);
@@ -52,18 +52,21 @@ export class ExUnitAdapter implements TestAdapter {
       }),
       this
     );
+
     this.disposables.push(
       vscode.workspace.onDidSaveTextDocument((document) => {
         this.onFileChange(document);
       }),
       this
     );
+
     this.disposables.push(
       vscode.workspace.onDidRenameFiles((fileRenameEvent) => {
         this.onFileRename(fileRenameEvent);
       }),
       this
     );
+
     this.disposables.push(
       vscode.workspace.onDidDeleteFiles((fileDeleteEvent) => {
         this.onFileDelete(fileDeleteEvent);
@@ -83,28 +86,14 @@ export class ExUnitAdapter implements TestAdapter {
     }
 
     this.log.info('Loading tests');
-
-    const projects = scanProjects(this.workspace.uri.fsPath);
-    this.log.info('Found projects:', projects);
-
     this.isLoadingTests = true;
     this.testsEmitter.fire(<TestLoadStartedEvent>{ type: 'started' });
 
     try {
-      const results = await Promise.all(
-        projects.map(async (projectDir) => {
-          const { tests, error } = await this.exUnit.reloadTests(projectDir);
-          this.log.info('Executed', tests);
-          return {
-            tests: tests,
-            error: error,
-            projectDir: projectDir,
-          };
-        })
-      );
+      const testDirs = scanProjects(this.workspace.uri.fsPath);
+      this.log.info('Found projects:', testDirs);
 
-      const hasErrors = results.filter((suite) => suite.error).length === 0 ? true : false;
-      const suites = results.map((suite) => suite.tests);
+      const result = await this.testRunner.loadAll(testDirs);
 
       const testLoadFinishedEvent = {
         type: 'finished',
@@ -112,10 +101,10 @@ export class ExUnitAdapter implements TestAdapter {
           id: 'root',
           type: 'suite',
           label: 'ExUnit',
-          children: suites,
-          errored: hasErrors,
+          children: result.suites,
+          errored: result.hasErrors,
         },
-        errorMessage: hasErrors ? 'Something failed when running the tests' : undefined,
+        errorMessage: result.hasErrors ? 'Something failed when running the tests' : undefined,
       };
 
       this.log.info('TestLoadFinished', testLoadFinishedEvent);
@@ -133,7 +122,7 @@ export class ExUnitAdapter implements TestAdapter {
     this.testStatesEmitter.fire(<TestRunStartedEvent>{ type: 'started', tests });
 
     for (const test of tests) {
-      const { testResults, error } = await this.exUnit.runTests(this.getProjectDir(), test);
+      const { testResults, error } = await this.testRunner.runTests(this.getProjectDir(), test);
 
       if (error) {
         this.testStatesEmitter.fire(<TestSuiteEvent>{
@@ -160,7 +149,7 @@ export class ExUnitAdapter implements TestAdapter {
   }
 
   cancel(): void {
-    this.exUnit.cancelProcess();
+    this.testRunner.cancelProcess();
   }
 
   dispose(): void {
@@ -176,7 +165,7 @@ export class ExUnitAdapter implements TestAdapter {
 
     this.testsEmitter.fire(<TestLoadStartedEvent>{ type: 'started' });
 
-    const { tests, error } = await this.exUnit.reloadTest(this.getProjectDir(), filePath);
+    const { tests, error } = await this.testRunner.reloadTest(this.getProjectDir(), filePath);
 
     const event: TestLoadFinishedEvent = {
       type: 'finished',
