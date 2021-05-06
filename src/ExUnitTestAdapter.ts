@@ -13,6 +13,12 @@ import { Log } from 'vscode-test-adapter-util';
 import { ExUnitRunner } from './ExUnitRunner';
 import { scanProjects } from './utils/scanProjects';
 
+/*
+  ExUnitTestAdapter is the adapter for Test Explorer. 
+
+  It uses the vs code event bus to communicate to Test Explorer.
+  It delegates to the ExUnitRunner for when file changes occur.
+*/
 export class ExUnitTestAdapter implements TestAdapter {
   private disposables: { dispose(): void }[] = [];
   private isLoadingTests = false;
@@ -93,18 +99,12 @@ export class ExUnitTestAdapter implements TestAdapter {
       const testDirs = scanProjects(this.workspace.uri.fsPath);
       this.log.info('Found projects:', testDirs);
 
-      const result = await this.testRunner.loadAll(testDirs);
+      const suite = await this.testRunner.load(testDirs);
 
       const testLoadFinishedEvent = {
         type: 'finished',
-        suite: {
-          id: 'root',
-          type: 'suite',
-          label: 'ExUnit',
-          children: result.suites,
-          errored: result.hasErrors,
-        },
-        errorMessage: result.hasErrors ? 'Something failed when running the tests' : undefined,
+        suite: suite,
+        errorMessage: undefined,
       };
 
       this.log.info('TestLoadFinished', testLoadFinishedEvent);
@@ -122,7 +122,7 @@ export class ExUnitTestAdapter implements TestAdapter {
     this.testStatesEmitter.fire(<TestRunStartedEvent>{ type: 'started', tests });
 
     for (const test of tests) {
-      const { testResults, error } = await this.testRunner.runTests(this.getProjectDir(), test);
+      const { testResults, error } = await this.testRunner.run(this.getProjectDir(), test);
 
       if (error) {
         this.testStatesEmitter.fire(<TestSuiteEvent>{
@@ -160,22 +160,6 @@ export class ExUnitTestAdapter implements TestAdapter {
     this.disposables = [];
   }
 
-  private async reload(filePath: string) {
-    this.log.info(`Reloading tests in ${filePath}`);
-
-    this.testsEmitter.fire(<TestLoadStartedEvent>{ type: 'started' });
-
-    const { tests, error } = await this.testRunner.reloadTest(this.getProjectDir(), filePath);
-
-    const event: TestLoadFinishedEvent = {
-      type: 'finished',
-      errorMessage: error,
-      suite: tests,
-    };
-
-    this.testsEmitter.fire(event);
-  }
-
   private onConfigChange(configChange: vscode.ConfigurationChangeEvent): void {
     if (configChange.affectsConfiguration('elixirTestExplorer', this.workspace.uri)) {
       this.log.info('Configuration changed');
@@ -203,7 +187,7 @@ export class ExUnitTestAdapter implements TestAdapter {
     const testsDir = path.join(this.getProjectDir(), 'test');
     if (filepath.endsWith('.exs') && filepath.startsWith(testsDir)) {
       this.log.info('A test file has been edited, reloading tests.');
-      this.reload(filepath);
+      this.load(); // TODO: optimise, only reload one file
     }
   }
 

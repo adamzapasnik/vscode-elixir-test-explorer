@@ -3,4 +3,5 @@ export const PATHS = {
   simpleProject: `${process.cwd()}/test/unit/fixtures/simple_project`,
   umbrellaProject: `${process.cwd()}/test/unit/fixtures/umbrella_project`,
   umbrellaProjectAppOne: `${process.cwd()}/test/unit/fixtures/umbrella_project/apps/app_one`,
+  umbrellaProjectAppTwo: `${process.cwd()}/test/unit/fixtures/umbrella_project/apps/app_two`,
 };

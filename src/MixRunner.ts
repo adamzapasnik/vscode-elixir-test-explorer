@@ -1,5 +1,8 @@
 import * as childProcess from 'child_process';
 
+/*
+ Responsible for running mix tasks and passing the output as a string.
+*/
 export class MixRunner {
   private currentProcess: childProcess.ChildProcess | undefined;
 
@@ -12,7 +15,6 @@ export class MixRunner {
       const command = `mix test --trace --seed=0 --only="" ${path}`;
 
       this.currentProcess = childProcess.exec(command, { cwd: projectDir }, (err, stdout, stderr) => {
-        // Everything is alright
         if (stderr.trim() === 'The --only option was given to "mix test" but no test was executed') {
           return resolve(stdout);
         } else if (stdout.trim().includes('== Compilation error in file')) {

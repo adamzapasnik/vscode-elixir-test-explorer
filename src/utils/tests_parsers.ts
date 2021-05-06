@@ -5,7 +5,7 @@ export interface TestErrors {
   [key: string]: string;
 }
 
-export function parseTests(projectDir: string, stdout: string): Map<string, Array<TestInfo>> {
+export function parseMixOutput(projectDir: string, stdout: string): Map<string, Array<TestInfo>> {
   const testsMap = new Map();
   const tests = stdout
     .split('Including tags: [:""]')[1] // compilation and other noise before

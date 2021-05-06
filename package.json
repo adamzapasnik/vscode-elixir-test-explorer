@@ -61,7 +61,7 @@
     "watch": "tsc -watch -p ./",
     "pretest": "yarn run compile && yarn run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
+    "test": "node ./out/test/integration/runTest.js",
     "test-unit": "./node_modules/ts-mocha/bin/ts-mocha -p tsconfig.json test/unit/**/*.test.ts"
   },
   "devDependencies": {
@@ -90,6 +90,8 @@
     "hbenl.vscode-test-explorer"
   ],
   "dependencies": {
+    "@types/graphlib": "^2.1.7",
+    "graphlib": "^2.1.8",
     "vscode-test-adapter-api": "^1.9.0",
     "vscode-test-adapter-util": "^0.7.1"
   }
