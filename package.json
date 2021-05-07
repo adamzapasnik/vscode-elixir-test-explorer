@@ -45,12 +45,6 @@
           "default": true,
           "scope": "resource",
           "description": "Control whether or not Elixir Test Explorer is enabled."
-        },
-        "elixirTestExplorer.projectDir": {
-          "scope": "resource",
-          "type": "string",
-          "description": "Project dir",
-          "default": ""
         }
       }
     }

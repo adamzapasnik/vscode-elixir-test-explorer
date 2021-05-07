@@ -2,7 +2,7 @@
 
 ## Features
 
-Shows Elixir tests in a sidebar.
+Shows Elixir tests in a sidebar. Scans all your elixir projects in your workspace.
 
 **NOTE:** It also works with a multi-workspace environment.
 
@@ -11,7 +11,6 @@ Shows Elixir tests in a sidebar.
 This extension contributes the following settings:
 
 - `elixirTestExplorer.enable`: enable/disable this extension
-- `elixirTestExplorer.projectDir`: specify mix directory in case Elixir project resides in a subdirectory
 
 ![Elixir Test Explorer](./images/screenshot.png)
 

@@ -26,7 +26,7 @@ export class ExUnitRunner {
     this.workspaceName = workspaceName;
   }
 
-  cancelProcess() {
+  public cancelProcess() {
     this.mix.kill();
   }
 
@@ -43,13 +43,31 @@ export class ExUnitRunner {
   }
 
   public async run(testDir: string, nodeId: string): Promise<{ testResults?: TestResult[]; error?: string }> {
+    // TODO: replace with graph abstraction
+    const generateTestResults = (node: TestSuiteInfo | TestInfo, errors: TestErrors) => {
+      // update tree
+      let currentResults: TestResult[] = [];
+      if (node.type === 'suite') {
+        for (const child of node.children) {
+          currentResults = currentResults.concat(generateTestResults(child, errors));
+        }
+      } else {
+        currentResults.push(<TestResult>{
+          nodeId: node.id,
+          state: errors[node.id] ? 'failed' : 'passed',
+          error: errors[node.id],
+        });
+      }
+      return currentResults;
+    };
+
     try {
       const isLineTest = /\:\d+$/.test(nodeId);
       const stdout = await this.mix.runSingleTest(testDir, nodeId);
       const node = this.testTree.export({ scope: 'NODE_ID', nodeId: nodeId });
       const parseFunction = isLineTest ? parseLineTestErrors : parseTestErrors;
       const testErrors = parseFunction(stdout, nodeId);
-      const testResults = this.generateTestResults(node!, testErrors);
+      const testResults = generateTestResults(node!, testErrors);
       return { testResults };
     } catch (error) {
       return { error };
@@ -87,23 +105,5 @@ export class ExUnitRunner {
     walk(workspaceDir);
 
     return results;
-  }
-
-  // TODO: replace with graph abstraction
-  private generateTestResults(node: TestSuiteInfo | TestInfo, errors: TestErrors) {
-    // update tree
-    let currentResults: TestResult[] = [];
-    if (node.type === 'suite') {
-      for (const child of node.children) {
-        currentResults = currentResults.concat(this.generateTestResults(child, errors));
-      }
-    } else {
-      currentResults.push(<TestResult>{
-        nodeId: node.id,
-        state: errors[node.id] ? 'failed' : 'passed',
-        error: errors[node.id],
-      });
-    }
-    return currentResults;
   }
 }

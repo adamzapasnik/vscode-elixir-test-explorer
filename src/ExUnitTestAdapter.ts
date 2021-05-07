@@ -121,7 +121,7 @@ export class ExUnitTestAdapter implements TestAdapter {
     this.testStatesEmitter.fire(<TestRunStartedEvent>{ type: 'started', tests });
 
     for (const test of tests) {
-      const { testResults, error } = await this.testRunner.run(this.getProjectDir(), test);
+      const { testResults, error } = await this.testRunner.run(this.workspace.uri.fsPath, test);
 
       if (error) {
         this.testStatesEmitter.fire(<TestSuiteEvent>{
@@ -181,9 +181,9 @@ export class ExUnitTestAdapter implements TestAdapter {
       return;
     }
     const filepath = textDocument.uri.fsPath;
-    this.log.info(`${filepath} was saved - checking if this effects ${this.getProjectDir()}`);
+    this.log.info(`${filepath} was saved - checking if this effects ${this.workspace.uri.fsPath}`);
     // we should be checking projectDir
-    const testsDir = path.join(this.getProjectDir(), 'test');
+    const testsDir = path.join(this.workspace.uri.fsPath, 'test');
     if (filepath.endsWith('.exs') && filepath.startsWith(testsDir)) {
       this.log.info('A test file has been edited, reloading tests.');
       this.load(); // TODO: optimise, only reload one file
@@ -191,7 +191,7 @@ export class ExUnitTestAdapter implements TestAdapter {
   }
 
   private onFileRename(fileRenameEvent: vscode.FileRenameEvent): void {
-    const testsDir = path.join(this.getProjectDir(), 'test');
+    const testsDir = path.join(this.workspace.uri.fsPath, 'test');
     const isTestFileChanged = fileRenameEvent.files.some(
       (file) => file.oldUri.fsPath.endsWith('.exs') && file.oldUri.fsPath.startsWith(testsDir)
     );
@@ -203,7 +203,7 @@ export class ExUnitTestAdapter implements TestAdapter {
   }
 
   private onFileDelete(fileDeleteEvent: vscode.FileDeleteEvent): void {
-    const testsDir = path.join(this.getProjectDir(), 'test');
+    const testsDir = path.join(this.workspace.uri.fsPath, 'test');
     const isTestFileDeleted = fileDeleteEvent.files.some(
       (file) => file.fsPath.endsWith('.exs') && file.fsPath.startsWith(testsDir)
     );
@@ -217,13 +217,5 @@ export class ExUnitTestAdapter implements TestAdapter {
   private isAdapterEnabled(): boolean {
     const config = vscode.workspace.getConfiguration('elixirTestExplorer', this.workspace);
     return config.get('enabled', true);
-  }
-
-  private getProjectDir(): string {
-    const config = vscode.workspace.getConfiguration('elixirTestExplorer', this.workspace);
-    const workspacePath = this.workspace.uri.fsPath;
-    const projectDir = config.get('projectDir', '');
-
-    return projectDir ? path.join(workspacePath, projectDir) : workspacePath;
   }
 }
