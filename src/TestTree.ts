@@ -43,10 +43,12 @@ export interface ExportOptions {
 */
 export class TestTree {
   private graph: Graph;
-  private root: string = 'ExUnit Test Root';
+  private readonly root: string = 'exunit_suite_root';
+  private readonly workspaceName;
 
-  constructor() {
+  constructor(workspaceName: string) {
     this.graph = new Graph();
+    this.workspaceName = this;
   }
 
   public addTest(test: Test): Test {
@@ -91,6 +93,9 @@ export class TestTree {
       let lastSuite: TestSuite = this.graph.node(this.root);
       for (let i = 0; i < pathParts.length; i++) {
         if (pathParts[i].includes('.exs')) {
+          continue;
+        }
+        if (pathParts[i] === 'test') {
           continue;
         }
 
@@ -158,10 +163,10 @@ export class TestTree {
       if (nodeId === this.root) {
         return {
           type: 'suite',
-          id: 'exunit_suite_root',
-          label: 'ExUnit',
-          description: 'Testsuite for project x',
-          tooltip: undefined,
+          id: this.root,
+          label: `ExUnit ${this.workspaceName}`,
+          description: `Test suite for ${this.workspaceName}`,
+          tooltip: 'Test Suite',
           file: undefined,
           line: undefined,
           debuggable: false,

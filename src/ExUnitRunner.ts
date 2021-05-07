@@ -20,7 +20,7 @@ export class ExUnitRunner {
 
   constructor(workspaceName: string) {
     this.mix = new MixRunner();
-    this.testTree = new TestTree();
+    this.testTree = new TestTree(workspaceName);
     this.workspaceName = workspaceName;
   }
 
