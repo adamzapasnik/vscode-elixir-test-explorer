@@ -1,3 +1,5 @@
+import path = require('path');
+import * as fs from 'fs';
 import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
 import { MixRunner } from './MixRunner';
 import { TestTree } from './TestTree';
@@ -28,7 +30,7 @@ export class ExUnitRunner {
     this.mix.kill();
   }
 
-  async load(testDirs: string[]): Promise<TestSuiteInfo> {
+  public async load(testDirs: string[]): Promise<TestSuiteInfo> {
     await Promise.all(
       testDirs.map(async (testDir) => {
         const stdout = await this.mix.run(testDir);
@@ -40,7 +42,7 @@ export class ExUnitRunner {
     return this.testTree.export() as TestSuiteInfo;
   }
 
-  async run(testDir: string, nodeId: string): Promise<{ testResults?: TestResult[]; error?: string }> {
+  public async run(testDir: string, nodeId: string): Promise<{ testResults?: TestResult[]; error?: string }> {
     try {
       const isLineTest = /\:\d+$/.test(nodeId);
       const stdout = await this.mix.runSingleTest(testDir, nodeId);
@@ -52,6 +54,39 @@ export class ExUnitRunner {
     } catch (error) {
       return { error };
     }
+  }
+
+  public scan(workspaceDir: string): string[] {
+    const hasAdjacentTestDir = (filePath: string): boolean => {
+      const testDir = path.join(path.dirname(filePath), 'test');
+      return fs.existsSync(testDir);
+    };
+
+    const isNotDepsDir = (file: string) => {
+      return !file.endsWith('deps');
+    };
+
+    var results: string[] = [];
+
+    var walk = function (currentDir: string): void {
+      var list = fs.readdirSync(currentDir);
+
+      list.forEach(function (file: string) {
+        file = path.join(currentDir, file);
+        var stat = fs.statSync(file);
+        if (stat && stat.isDirectory() && isNotDepsDir(file)) {
+          walk(file);
+        } else {
+          if (file.endsWith('mix.exs') && hasAdjacentTestDir(file)) {
+            results.push(path.dirname(file));
+          }
+        }
+      });
+    };
+
+    walk(workspaceDir);
+
+    return results;
   }
 
   // TODO: replace with graph abstraction

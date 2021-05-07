@@ -62,7 +62,7 @@
     "pretest": "yarn run compile && yarn run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/integration/runTest.js",
-    "test-unit": "./node_modules/ts-mocha/bin/ts-mocha -p tsconfig.json test/unit/**/*.test.ts"
+    "test-unit": "./node_modules/ts-mocha/bin/ts-mocha -p tsconfig.json test/unit/**.test.ts"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.14.1",

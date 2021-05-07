@@ -1,56 +1,50 @@
-import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
-import { ExUnitRunner } from '../../src/ExUnitRunner';
-import { PATHS } from './fixtures/fixtures';
 import * as chai from 'chai';
 import 'mocha';
+import { ExUnitRunner } from '../../src/ExUnitRunner';
+import { PATHS } from './fixtures/fixtures';
+import * as fixtures from './fixtures/fixtures';
 
 const expect = chai.expect;
 
 describe('ExUnitRunner', async () => {
-  it('load all tests', async () => {
-    const exUnit = new ExUnitRunner('my_project');
+  let exUnit: ExUnitRunner;
+  beforeEach(() => {
+    exUnit = new ExUnitRunner('my_project');
+  });
 
+  it('load all tests successfully', async () => {
     const result = await exUnit.load([PATHS.simpleProject, PATHS.umbrellaProjectAppOne]);
 
-    expect(result.children).to.have.lengthOf(3);
+    expect(result.id).to.equal('exunit_suite_root');
+    expect(result.label).to.equal('ExUnit my_project');
+    expect(result.type).to.equal('suite');
+    expect(result.children).to.have.lengthOf(6);
+  });
 
-    expect(result.children[0]?.label).to.eq('simple_project');
+  it('run', () => {
+    //TODO: write tests
+  });
 
-    const testSuite = (result.children[0] as TestSuiteInfo).children[0] as TestSuiteInfo;
-    expect(testSuite.label).to.eq('simple_project_test.exs');
-    expect(testSuite.id).to.eq('test/simple_project_test.exs');
-    expect(testSuite.message).to.be.undefined;
-    expect(testSuite.description).to.be.undefined;
-    expect(testSuite.errored).to.be.undefined;
-    expect(testSuite.line).to.be.undefined;
-    expect(testSuite.type).to.eq('suite');
-    expect(testSuite.children).to.have.lengthOf(3);
-    expect(testSuite.children).deep.equal([
-      {
-        file:
-          '/Users/benjamingroehbiel/workspace/vscode-elixir-test-explorer/test/unit/fixtures/simple_project/test/simple_project_test.exs',
-        id: 'test/simple_project_test.exs:3',
-        label: 'doctest',
-        line: 2,
-        type: 'test',
-      },
-      {
-        file:
-          '/Users/benjamingroehbiel/workspace/vscode-elixir-test-explorer/test/unit/fixtures/simple_project/test/simple_project_test.exs',
-        id: 'test/simple_project_test.exs:5',
-        label: 'greets the world',
-        line: 4,
-        type: 'test',
-      },
-      {
-        file:
-          '/Users/benjamingroehbiel/workspace/vscode-elixir-test-explorer/test/unit/fixtures/simple_project/test/simple_project_test.exs',
-        id: 'test/simple_project_test.exs:9',
-        label: 'greets the underworld',
-        line: 8,
-        type: 'test',
-      },
-    ]);
-    expect((testSuite.children[2] as TestInfo).errored).to.be.undefined;
+  describe('scan', () => {
+    it('finds all projects with tests in umbrella project', () => {
+      const root = exUnit.scan(fixtures.PATHS.umbrellaProject);
+
+      expect(root).to.have.lengthOf(2);
+      expect(root[0]).to.contain('/fixtures/umbrella_project/apps/app_one');
+      expect(root[1]).to.contain('/fixtures/umbrella_project/apps/app_two');
+    });
+
+    it('finds all projects with tests in simple project', () => {
+      const root = exUnit.scan(fixtures.PATHS.simpleProject);
+
+      expect(root).to.have.lengthOf(1);
+      expect(root[0]).to.contain('/fixtures/simple_project');
+    });
+
+    it('ignores deps directory', () => {
+      const projectWithDepsTests = exUnit.scan(fixtures.PATHS.umbrellaProject);
+
+      expect(projectWithDepsTests).to.have.lengthOf(2);
+    });
   });
 });

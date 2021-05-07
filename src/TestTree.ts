@@ -1,7 +1,6 @@
 import { Graph, json } from 'graphlib';
 import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
 
-// TODO: use TestInfo and TestSuiteInfo?
 export interface Test {
   kind: 'test' | 'suite';
   id: string;
@@ -43,20 +42,30 @@ export interface ExportOptions {
 */
 export class TestTree {
   private graph: Graph;
-  private readonly root: string = 'exunit_suite_root';
+  private readonly root: TestSuite;
   private readonly workspaceName;
 
   constructor(workspaceName: string) {
     this.graph = new Graph();
-    this.workspaceName = this;
+    this.workspaceName = workspaceName;
+    this.root = {
+      id: 'exunit_suite_root',
+      belongsTo: undefined,
+      kind: 'suite',
+      label: `ExUnit ${this.workspaceName}`,
+      description: `Test suite for ${this.workspaceName}`,
+      tooltip: 'Test Suite',
+      errored: false,
+    };
+    this.graph.setNode('exunit_suite_root', this.root);
   }
 
   public addTest(test: Test): Test {
-    const v = test.belongsTo.id || this.root;
+    const v = test.belongsTo.id || this.root.id;
     const w = test.id;
 
     if (!this.graph.hasNode(v)) {
-      console.warn('Node does not exist');
+      console.warn(`TestSuite does not exist: adding test ${test.file} to ${v}`);
     }
 
     this.graph.setNode(w, test);
@@ -66,14 +75,14 @@ export class TestTree {
   }
 
   public addSuite(suite: TestSuite): TestSuite {
-    const v = suite.belongsTo?.id || this.root;
+    const v = suite.belongsTo?.id || this.root.id;
     const w = suite.id;
 
     this.graph.setNode(w, suite);
 
     if (v) {
       if (!this.graph.hasNode(v)) {
-        console.warn('Node does not exist');
+        console.warn(`TestSuite does not exist: adding suite ${suite} to ${v}`);
       }
 
       this.graph.setEdge(v, w, undefined);
@@ -82,26 +91,26 @@ export class TestTree {
     return this.graph.node(w);
   }
 
-  // TODO: test properly!
   public import(testsMap: Map<string, TestInfo[]>) {
-    const rootSuite = this.graph.node(this.root);
+    let lastSuite: TestSuite = this.root;
 
     for (const [key, value] of testsMap) {
       const pathParts = key.split('/');
 
       let runningPath = '';
-      let lastSuite: TestSuite = this.graph.node(this.root);
+
       for (let i = 0; i < pathParts.length; i++) {
         if (pathParts[i].includes('.exs')) {
           continue;
         }
+
         if (pathParts[i] === 'test') {
           continue;
         }
 
         let parentNodeId;
         if (i === 0) {
-          parentNodeId = this.root;
+          parentNodeId = this.root.id;
         } else {
           parentNodeId = runningPath;
         }
@@ -158,15 +167,15 @@ export class TestTree {
     const buildSuite = (nodeId: string): TestSuiteInfo => {
       const currentNode: TestSuite = this.graph.node(nodeId);
       const successors = this.graph.successors(nodeId) as string[];
-      const nextNodes = successors.map(buildNode);
+      const nextNodes = successors?.map(buildNode) || [];
 
-      if (nodeId === this.root) {
+      if (nodeId === this.root.id) {
         return {
           type: 'suite',
-          id: this.root,
-          label: `ExUnit ${this.workspaceName}`,
-          description: `Test suite for ${this.workspaceName}`,
-          tooltip: 'Test Suite',
+          id: this.root.id,
+          label: this.root.label,
+          description: this.root.description,
+          tooltip: this.root.tooltip,
           file: undefined,
           line: undefined,
           debuggable: false,
@@ -211,7 +220,7 @@ export class TestTree {
 
     switch (options.scope) {
       case 'ALL': {
-        return buildSuite(this.root);
+        return buildSuite(this.root.id);
       }
       case 'NODE_ID': {
         return buildNode(options.nodeId!);

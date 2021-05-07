@@ -1,5 +1,6 @@
 import * as chai from 'chai';
 import 'mocha';
+import { TestSuiteInfo } from 'vscode-test-adapter-api';
 import { MixRunner } from '../../src/MixRunner';
 import { TestTree } from '../../src/TestTree';
 import { parseMixOutput } from '../../src/utils/tests_parsers';
@@ -8,59 +9,51 @@ import { PATHS } from './fixtures/fixtures';
 const expect = chai.expect;
 
 describe('TestTree', async () => {
-  it('import one test source to graph', async () => {
-    const tree = new TestTree();
+  let tree: TestTree;
+  let mix: MixRunner;
 
-    tree.import(parseMixOutput(PATHS.simpleProject, await new MixRunner().run(PATHS.simpleProject)));
-
-    tree.print();
-
-    const testAdapterTree = tree.export();
-    expect(testAdapterTree).to.not.be.undefined;
-
-    console.log(testAdapterTree);
+  beforeEach(() => {
+    mix = new MixRunner();
+    tree = new TestTree('workspaceName');
   });
 
-  it('import multiple test sources to graph', async () => {
-    const mix = new MixRunner();
-    const tree = new TestTree();
+  it('default graph', () => {
+    const exportedTree = tree.export() as TestSuiteInfo;
 
-    tree.import(parseMixOutput(PATHS.umbrellaProjectAppOne, await mix.run(PATHS.umbrellaProjectAppOne)));
-    tree.import(parseMixOutput(PATHS.umbrellaProjectAppTwo, await mix.run(PATHS.umbrellaProjectAppTwo)));
+    expect(exportedTree.id).to.equal('exunit_suite_root');
+    expect(exportedTree.label).to.equal('ExUnit workspaceName');
+    expect(exportedTree.children).to.have.lengthOf(0);
+  });
 
-    tree.print();
+  describe('modified graph', () => {
+    it('import one test source to form graph', async () => {
+      tree.import(parseMixOutput(PATHS.simpleProject, await mix.run(PATHS.simpleProject)));
 
-    const testAdapterTree = tree.export();
-    expect(testAdapterTree).to.not.be.undefined;
+      const exportedTree = tree.export() as TestSuiteInfo;
 
-    console.log(testAdapterTree);
+      expect(exportedTree.children).to.have.lengthOf(4);
+      expect(exportedTree.children.map((x) => x.id)).to.deep.equal([
+        'test/simple_project_test.exs:3',
+        'test/simple_project_test.exs:5',
+        'test/simple_project_test.exs:9',
+        'nested_dir/',
+      ]);
+    });
 
-    // TODO: write assertions
+    it('import multiple test sources to form graph', async () => {
+      tree.import(parseMixOutput(PATHS.umbrellaProjectAppOne, await mix.run(PATHS.umbrellaProjectAppOne)));
+      tree.import(parseMixOutput(PATHS.umbrellaProjectAppTwo, await mix.run(PATHS.umbrellaProjectAppTwo)));
+
+      const exportedTree = tree.export() as TestSuiteInfo;
+
+      expect(exportedTree).to.not.be.undefined;
+      expect(exportedTree.children).to.have.lengthOf(4);
+      expect(exportedTree.children.map((x) => x.id)).to.deep.equal([
+        'test/app_one_test.exs:3',
+        'test/app_one_test.exs:5',
+        'test/app_two_test.exs:3',
+        'test/app_two_test.exs:5',
+      ]);
+    });
   });
 });
-
-// Example test source:
-//
-// {'test/simple_project_test.exs' => [
-//   {
-//     type: 'test',
-//     id: 'test/simple_project_test.exs:3',
-//     label: 'doctest',
-//     file: '/Users/benjamingroehbiel/workspace/vscode-elixir-test-explorer/test/unit/fixtures/simple_project/test/simple_project_test.exs',
-//     line: 2
-//   },
-//   {
-//     type: 'test',
-//     id: 'test/simple_project_test.exs:5',
-//     label: 'greets the world',
-//     file: '/Users/benjamingroehbiel/workspace/vscode-elixir-test-explorer/test/unit/fixtures/simple_project/test/simple_project_test.exs',
-//     line: 4
-//   },
-//   {
-//     type: 'test',
-//     id: 'test/simple_project_test.exs:9',
-//     label: 'greets the underworld',
-//     file: '/Users/benjamingroehbiel/workspace/vscode-elixir-test-explorer/test/unit/fixtures/simple_project/test/simple_project_test.exs',
-//     line: 8
-//   }
-// ]}

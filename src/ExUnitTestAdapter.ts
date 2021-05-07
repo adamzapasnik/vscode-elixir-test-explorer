@@ -11,7 +11,6 @@ import {
 } from 'vscode-test-adapter-api';
 import { Log } from 'vscode-test-adapter-util';
 import { ExUnitRunner } from './ExUnitRunner';
-import { scanProjects } from './utils/scanProjects';
 
 /*
   ExUnitTestAdapter is the adapter for Test Explorer. 
@@ -96,7 +95,7 @@ export class ExUnitTestAdapter implements TestAdapter {
     this.testsEmitter.fire(<TestLoadStartedEvent>{ type: 'started' });
 
     try {
-      const testDirs = scanProjects(this.workspace.uri.fsPath);
+      const testDirs = this.testRunner.scan(this.workspace.uri.fsPath);
       this.log.info('Found projects:', testDirs);
 
       const suite = await this.testRunner.load(testDirs);
