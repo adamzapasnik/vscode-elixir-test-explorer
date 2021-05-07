@@ -1,5 +1,6 @@
 import { Graph, json } from 'graphlib';
 import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
+import { ParseOutput } from './utils/tests_parsers';
 
 export interface Test {
   kind: 'test' | 'suite';
@@ -56,6 +57,7 @@ export class TestTree {
       description: `Test suite for ${this.workspaceName}`,
       tooltip: 'Test Suite',
       errored: false,
+      file: undefined,
     };
     this.graph.setNode('exunit_suite_root', this.root);
   }
@@ -91,7 +93,7 @@ export class TestTree {
     return this.graph.node(w);
   }
 
-  public import(testsMap: Map<string, TestInfo[]>) {
+  public import(testsMap: Map<string, ParseOutput>) {
     let lastSuite: TestSuite = this.root;
 
     for (const [key, value] of testsMap) {
@@ -100,10 +102,6 @@ export class TestTree {
       let runningPath = '';
 
       for (let i = 0; i < pathParts.length; i++) {
-        if (pathParts[i].includes('.exs')) {
-          continue;
-        }
-
         if (pathParts[i] === 'test') {
           continue;
         }
@@ -121,12 +119,12 @@ export class TestTree {
 
         lastSuite = this.addSuite({
           kind: 'suite',
-          label: pathParts[i],
           id: runningPath,
+          file: value.file,
+          label: pathParts[i],
           belongsTo: parentNode,
           description: undefined,
           tooltip: undefined,
-          file: undefined,
           line: undefined,
           debuggable: undefined,
           errored: false,
@@ -134,7 +132,7 @@ export class TestTree {
         });
       }
 
-      value.forEach((test: TestInfo) => {
+      value.tests.forEach((test: TestInfo) => {
         this.addTest({
           kind: 'test',
           id: test.id,

@@ -25,35 +25,60 @@ describe('TestTree', async () => {
     expect(exportedTree.children).to.have.lengthOf(0);
   });
 
-  describe('modified graph', () => {
-    it('import one test source to form graph', async () => {
-      tree.import(parseMixOutput(PATHS.simpleProject, await mix.run(PATHS.simpleProject)));
+  describe('import', () => {
+    it('import single test map', async () => {
+      const testMaps = parseMixOutput(PATHS.simpleProject, await mix.run(PATHS.simpleProject));
+      tree.import(testMaps);
 
       const exportedTree = tree.export() as TestSuiteInfo;
 
-      expect(exportedTree.children).to.have.lengthOf(4);
-      expect(exportedTree.children.map((x) => x.id)).to.deep.equal([
-        'test/simple_project_test.exs:3',
-        'test/simple_project_test.exs:5',
-        'test/simple_project_test.exs:9',
-        'nested_dir/',
-      ]);
+      expect(exportedTree.children).to.have.lengthOf(2);
+      expect(exportedTree.children.map((x) => x.id)).to.deep.equal(['simple_project_test.exs/', 'nested_dir/']);
     });
 
-    it('import multiple test sources to form graph', async () => {
+    it('import multiple test maps', async () => {
       tree.import(parseMixOutput(PATHS.umbrellaProjectAppOne, await mix.run(PATHS.umbrellaProjectAppOne)));
       tree.import(parseMixOutput(PATHS.umbrellaProjectAppTwo, await mix.run(PATHS.umbrellaProjectAppTwo)));
 
       const exportedTree = tree.export() as TestSuiteInfo;
 
       expect(exportedTree).to.not.be.undefined;
-      expect(exportedTree.children).to.have.lengthOf(4);
-      expect(exportedTree.children.map((x) => x.id)).to.deep.equal([
-        'test/app_one_test.exs:3',
-        'test/app_one_test.exs:5',
-        'test/app_two_test.exs:3',
-        'test/app_two_test.exs:5',
-      ]);
+      expect(exportedTree.children).to.have.lengthOf(2);
+      expect(exportedTree.children.map((x) => x.id)).to.deep.equal(['app_one_test.exs/', 'app_two_test.exs/']);
+    });
+  });
+
+  describe('test suites data integrity', () => {
+    it('test suites and tests contain correct file, label and id', async () => {
+      tree.import(parseMixOutput(PATHS.simpleProject, await mix.run(PATHS.simpleProject)));
+
+      const exportedTree = tree.export() as TestSuiteInfo;
+
+      // root
+      expect(exportedTree.id).to.to.equal('exunit_suite_root');
+      expect(exportedTree.label).to.to.equal('ExUnit workspaceName');
+      expect(exportedTree.file).to.to.equal(undefined);
+
+      // test suite (file)
+      const file = exportedTree.children[0];
+      expect(file.type).to.equal('suite');
+      expect(file.label).to.equal('simple_project_test.exs');
+      expect(file.id).to.equal('simple_project_test.exs/');
+      expect(file.file).to.contain('/simple_project/test/simple_project_test.exs');
+
+      // nested test suite
+      const suite = exportedTree.children[1];
+      expect(suite.type).to.equal('suite');
+      expect(suite.label).to.equal('nested_dir');
+      expect(suite.id).to.equal('nested_dir/');
+      expect(suite.file).to.contain('/simple_project/test/nested_dir/nested_test.exs');
+
+      // test suite (file)
+      const test = (exportedTree.children[1] as TestSuiteInfo).children[0];
+      expect(test.type).to.equal('suite');
+      expect(test.label).to.equal('nested_test.exs');
+      expect(test.id).to.equal('nested_dir/nested_test.exs/');
+      expect(test.file).to.contain('/simple_project/test/nested_dir/nested_test.exs');
     });
   });
 });

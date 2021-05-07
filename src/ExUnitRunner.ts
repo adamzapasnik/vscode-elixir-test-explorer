@@ -16,7 +16,7 @@ interface TestResult {
  Under the hood it uses the TestTree and the MixRunner to do so.
 */
 export class ExUnitRunner {
-  private workspaceName: string;
+  private readonly workspaceName: string;
   private mix: MixRunner;
   private testTree: TestTree;
 

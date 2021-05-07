@@ -115,6 +115,8 @@ export class ExUnitTestAdapter implements TestAdapter {
     }
   }
 
+  // TODO: this is not how Test Adapter API recommends, run is implemented:
+  // https://github.com/hbenl/vscode-test-adapter-api#running-the-tests
   async run(tests: string[]): Promise<void> {
     this.log.info(`Running tests ${JSON.stringify(tests)}`);
 
@@ -196,9 +198,8 @@ export class ExUnitTestAdapter implements TestAdapter {
       (file) => file.oldUri.fsPath.endsWith('.exs') && file.oldUri.fsPath.startsWith(testsDir)
     );
 
-    // TODO: optimize it to run reload
     if (isTestFileChanged) {
-      this.load();
+      this.load(); // TODO: optimise, only reload one file
     }
   }
 
@@ -208,9 +209,8 @@ export class ExUnitTestAdapter implements TestAdapter {
       (file) => file.fsPath.endsWith('.exs') && file.fsPath.startsWith(testsDir)
     );
 
-    // TODO: optimize it to run reload
     if (isTestFileDeleted) {
-      this.load();
+      this.load(); // TODO: optimise, only reload one file
     }
   }
 

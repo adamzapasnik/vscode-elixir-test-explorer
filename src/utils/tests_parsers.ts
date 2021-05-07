@@ -5,8 +5,13 @@ export interface TestErrors {
   [key: string]: string;
 }
 
-export function parseMixOutput(projectDir: string, stdout: string): Map<string, Array<TestInfo>> {
-  const testsMap = new Map();
+export interface ParseOutput {
+  file: string;
+  tests: Array<TestInfo>;
+}
+
+export function parseMixOutput(projectDir: string, stdout: string): Map<string, ParseOutput> {
+  const testsMap = new Map<string, ParseOutput>();
   const tests = stdout
     .split('Including tags: [:""]')[1] // compilation and other noise before
     .trim()
@@ -17,6 +22,8 @@ export function parseMixOutput(projectDir: string, stdout: string): Map<string, 
 
   for (const testFile of tests) {
     const testFilePath = testFile.shift()!.split(' ')!.pop()!.slice(1, -1);
+    const absolutePath = path.join(projectDir, testFilePath);
+
     const testInfos: TestInfo[] = testFile.map((test) => {
       //  * doctest Phoenix.Naming.camelize/1 (1) (excluded) [L#5]\r  * doctest Phoenix.Naming.camelize/1 (1) (excluded) [L#5]
       const parts = test.split('\r').slice(1).join('').trim().substring(2).split(' ');
@@ -29,17 +36,20 @@ export function parseMixOutput(projectDir: string, stdout: string): Map<string, 
         type: 'test',
         id: `${testFilePath}:${line}`,
         label: testType === 'doctest' ? 'doctest' : parts.join(' '),
-        file: path.join(projectDir, testFilePath),
+        file: absolutePath,
         line: line - 1,
       };
     });
 
     // filter out multiple doctests or macro generated tests
-    const uniques = testInfos.filter((testInfo, index) => testInfos.findIndex((t) => t.id === testInfo.id) === index);
+    const filteredTestInfos = testInfos.filter(
+      (testInfo, index) => testInfos.findIndex((t) => t.id === testInfo.id) === index
+    );
 
-    // testFilePath can be printed multiple times
-    const parsedTests = testsMap.get(testFilePath) || [];
-    testsMap.set(testFilePath, parsedTests.concat(uniques));
+    testsMap.set(testFilePath, {
+      tests: filteredTestInfos,
+      file: absolutePath,
+    });
   }
 
   return testsMap;
