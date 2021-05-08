@@ -3,6 +3,7 @@ import 'mocha';
 import { ExUnitRunner } from '../../src/ExUnitRunner';
 import { PATHS } from './fixtures/fixtures';
 import * as fixtures from './fixtures/fixtures';
+import { TestSuiteInfo } from 'vscode-test-adapter-api';
 
 const expect = chai.expect;
 
@@ -13,7 +14,7 @@ describe('ExUnitRunner', async () => {
     exUnit = new ExUnitRunner('my_project', process.cwd());
   });
 
-  it('load all tests successfully', async () => {
+  it('load', async () => {
     const result = await exUnit.load([PATHS.simpleProject, PATHS.umbrellaProjectAppOne]);
 
     // main test suite
@@ -31,10 +32,27 @@ describe('ExUnitRunner', async () => {
     expect(result.children[2].id).to.equal('app_one_test.exs/'); // TODO: this may not be unique enough
     expect(result.children[2].label).to.equal('app_one_test.exs');
     expect(result.children[2].file).to.contain('/unit/fixtures/umbrella_project/apps/app_one/test/app_one_test.exs');
+
+    // test
+    expect((result.children[0] as TestSuiteInfo).children).to.have.lengthOf(3);
+    expect((result.children[0] as TestSuiteInfo).children.map((x) => x.id)).to.contain(
+      'test/unit/fixtures/simple_project/test/simple_project_test.exs:5'
+    );
   });
 
-  it('run', () => {
-    //TODO: write tests
+  it('evaluate', async () => {
+    await exUnit.load([PATHS.simpleProject]);
+    const results = await exUnit.evaluate(
+      PATHS.simpleProject,
+      'test/unit/fixtures/simple_project/test/simple_project_test.exs:5'
+    );
+
+    expect(results.error).to.be.undefined;
+    expect(results.testResults).to.have.lengthOf(1);
+
+    const test = results.testResults![0];
+    expect(test.nodeId).to.equal('test/unit/fixtures/simple_project/test/simple_project_test.exs:5');
+    expect(test.state).to.equal('passed');
   });
 
   describe('scan', () => {

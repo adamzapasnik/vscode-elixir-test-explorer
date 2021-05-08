@@ -122,7 +122,7 @@ export class TestTree {
 
         lastSuite = this.addSuite({
           kind: 'suite',
-          id: runningPath,
+          id: runningPath, // TODO: This may not be unique enough for test suites.
           file: value.absolutePath,
           label: pathParts[i],
           belongsTo: parentNode,
