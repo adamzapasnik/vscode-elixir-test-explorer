@@ -1,11 +1,12 @@
 import path = require('path');
 import * as fs from 'fs';
-import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
+import { TestSuiteInfo } from 'vscode-test-adapter-api';
+import { MixParser } from './MixParser';
 import { MixRunner } from './MixRunner';
 import { TestTree } from './TestTree';
-import { parseLineTestErrors, parseMixOutput, parseTestErrors, TestErrors } from './utils/tests_parsers';
+import { parseMixOutput } from './utils/tests_parsers';
 
-interface TestResult {
+export interface TestResult {
   state: 'failed' | 'passed';
   nodeId: 'string';
   error?: 'string';
@@ -17,24 +18,28 @@ interface TestResult {
 */
 export class ExUnitRunner {
   private readonly workspaceName: string;
-  private mix: MixRunner;
+  private readonly workspacePath: string;
+  private mixRunner: MixRunner;
+  private mixParser: MixParser;
   private testTree: TestTree;
 
-  constructor(workspaceName: string) {
-    this.mix = new MixRunner();
+  constructor(workspaceName: string, workspacePath: string) {
+    this.mixRunner = new MixRunner();
+    this.mixParser = new MixParser();
     this.testTree = new TestTree(workspaceName);
     this.workspaceName = workspaceName;
+    this.workspacePath = workspacePath;
   }
 
   public cancelProcess() {
-    this.mix.kill();
+    this.mixRunner.kill();
   }
 
   public async load(testDirs: string[]): Promise<TestSuiteInfo> {
     await Promise.all(
       testDirs.map(async (testDir) => {
-        const stdout = await this.mix.run(testDir);
-        const testsMap = parseMixOutput(testDir, stdout);
+        const stdout = await this.mixRunner.run(testDir);
+        const testsMap = parseMixOutput(this.workspacePath, testDir, stdout);
         this.testTree.import(testsMap);
       })
     );
@@ -42,33 +47,20 @@ export class ExUnitRunner {
     return this.testTree.export() as TestSuiteInfo;
   }
 
-  public async run(testDir: string, nodeId: string): Promise<{ testResults?: TestResult[]; error?: string }> {
-    // TODO: replace with graph abstraction
-    const generateTestResults = (node: TestSuiteInfo | TestInfo, errors: TestErrors) => {
-      // update tree
-      let currentResults: TestResult[] = [];
-      if (node.type === 'suite') {
-        for (const child of node.children) {
-          currentResults = currentResults.concat(generateTestResults(child, errors));
-        }
-      } else {
-        currentResults.push(<TestResult>{
-          nodeId: node.id,
-          state: errors[node.id] ? 'failed' : 'passed',
-          error: errors[node.id],
-        });
-      }
-      return currentResults;
-    };
-
+  public async evaluate(testDir: string, nodeId: string): Promise<{ testResults?: TestResult[]; error?: string }> {
     try {
-      const isLineTest = /\:\d+$/.test(nodeId);
-      const stdout = await this.mix.runSingleTest(testDir, nodeId);
       const node = this.testTree.export({ scope: 'NODE_ID', nodeId: nodeId });
-      const parseFunction = isLineTest ? parseLineTestErrors : parseTestErrors;
-      const testErrors = parseFunction(stdout, nodeId);
-      const testResults = generateTestResults(node!, testErrors);
-      return { testResults };
+      const isLineTest = /.*\:\d+$/.test(node.id!);
+      const stdout = await this.mixRunner.evaluate(testDir, node.file!);
+
+      let testResults;
+      if (isLineTest) {
+        testResults = this.mixParser.parseTest(stdout, node);
+      } else {
+        testResults = this.mixParser.parseTests(stdout, node);
+      }
+
+      return { testResults: testResults };
     } catch (error) {
       return { error };
     }

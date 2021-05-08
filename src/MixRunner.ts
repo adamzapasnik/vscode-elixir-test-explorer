@@ -28,18 +28,22 @@ export class MixRunner {
     });
   }
 
-  // TODO: not clear what the difference here is between the two methods.
-  public async runSingleTest(projectDir: string, nodeId: string): Promise<string> {
+  // TODO: can these two methods not be merged? I don't understand the difference.
+  public async evaluate(projectDir: string, filePath: string = ''): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-      const path = nodeId === 'root' ? '' : nodeId;
+      const command = `mix test ${filePath}`;
 
-      this.currentProcess = childProcess.exec(`mix test ${path}`, { cwd: projectDir }, (err, stdout, stderr) => {
-        if (stdout.trim().includes('Finished in')) {
-          return resolve(stdout);
+      this.currentProcess = childProcess.exec(command, { cwd: projectDir }, (err, stdout, stderr) => {
+        if (stdout.includes('Paths given to "mix test" did not match any directory/file')) {
+          return reject(stdout);
         }
 
         if (stdout.trim().includes('== Compilation error in file')) {
           return reject(stderr + '\n' + stdout);
+        }
+
+        if (stdout.trim().includes('Finished in')) {
+          return resolve(stdout);
         }
 
         if (stderr.trim()) {

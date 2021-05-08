@@ -50,7 +50,7 @@ export class TestTree {
     this.graph = new Graph();
     this.workspaceName = workspaceName;
     this.root = {
-      id: 'exunit_suite_root',
+      id: 'ExUnit_suite_root',
       belongsTo: undefined,
       kind: 'suite',
       label: `ExUnit ${this.workspaceName}`,
@@ -59,7 +59,11 @@ export class TestTree {
       errored: false,
       file: undefined,
     };
-    this.graph.setNode('exunit_suite_root', this.root);
+    this.graph.setNode('ExUnit_suite_root', this.root);
+  }
+
+  public getNode(nodeId: string): Test | TestSuiteInfo {
+    return this.graph.node(nodeId);
   }
 
   public addTest(test: Test): Test {
@@ -96,8 +100,8 @@ export class TestTree {
   public import(testsMap: Map<string, ParseOutput>) {
     let lastSuite: TestSuite = this.root;
 
-    for (const [key, value] of testsMap) {
-      const pathParts = key.split('/');
+    for (const [_, value] of testsMap) {
+      const pathParts = value.relativePath.split('/');
 
       let runningPath = '';
 
@@ -114,13 +118,12 @@ export class TestTree {
         }
 
         const parentNode = this.graph.node(parentNodeId) as TestSuite;
-
         runningPath += `${pathParts[i]}/`;
 
         lastSuite = this.addSuite({
           kind: 'suite',
           id: runningPath,
-          file: value.file,
+          file: value.absolutePath,
           label: pathParts[i],
           belongsTo: parentNode,
           description: undefined,

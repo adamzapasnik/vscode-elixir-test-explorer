@@ -20,14 +20,14 @@ describe('TestTree', async () => {
   it('default graph', () => {
     const exportedTree = tree.export() as TestSuiteInfo;
 
-    expect(exportedTree.id).to.equal('exunit_suite_root');
+    expect(exportedTree.id).to.equal('ExUnit_suite_root');
     expect(exportedTree.label).to.equal('ExUnit workspaceName');
     expect(exportedTree.children).to.have.lengthOf(0);
   });
 
   describe('import', () => {
     it('import single test map', async () => {
-      const testMaps = parseMixOutput(PATHS.simpleProject, await mix.run(PATHS.simpleProject));
+      const testMaps = parseMixOutput(process.cwd(), PATHS.simpleProject, await mix.run(PATHS.simpleProject));
       tree.import(testMaps);
 
       const exportedTree = tree.export() as TestSuiteInfo;
@@ -37,8 +37,12 @@ describe('TestTree', async () => {
     });
 
     it('import multiple test maps', async () => {
-      tree.import(parseMixOutput(PATHS.umbrellaProjectAppOne, await mix.run(PATHS.umbrellaProjectAppOne)));
-      tree.import(parseMixOutput(PATHS.umbrellaProjectAppTwo, await mix.run(PATHS.umbrellaProjectAppTwo)));
+      tree.import(
+        parseMixOutput(process.cwd(), PATHS.umbrellaProjectAppOne, await mix.run(PATHS.umbrellaProjectAppOne))
+      );
+      tree.import(
+        parseMixOutput(process.cwd(), PATHS.umbrellaProjectAppTwo, await mix.run(PATHS.umbrellaProjectAppTwo))
+      );
 
       const exportedTree = tree.export() as TestSuiteInfo;
 
@@ -50,12 +54,12 @@ describe('TestTree', async () => {
 
   describe('test suites data integrity', () => {
     it('test suites and tests contain correct file, label and id', async () => {
-      tree.import(parseMixOutput(PATHS.simpleProject, await mix.run(PATHS.simpleProject)));
+      tree.import(parseMixOutput(process.cwd(), PATHS.simpleProject, await mix.run(PATHS.simpleProject)));
 
       const exportedTree = tree.export() as TestSuiteInfo;
 
       // root
-      expect(exportedTree.id).to.to.equal('exunit_suite_root');
+      expect(exportedTree.id).to.to.equal('ExUnit_suite_root');
       expect(exportedTree.label).to.to.equal('ExUnit workspaceName');
       expect(exportedTree.file).to.to.equal(undefined);
 

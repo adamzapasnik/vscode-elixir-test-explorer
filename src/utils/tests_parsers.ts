@@ -6,11 +6,13 @@ export interface TestErrors {
 }
 
 export interface ParseOutput {
-  file: string;
+  absolutePath: string;
+  relativePath: string;
   tests: Array<TestInfo>;
 }
 
-export function parseMixOutput(projectDir: string, stdout: string): Map<string, ParseOutput> {
+// Used by load method, does not evaluate whether tests have passed/failed.
+export function parseMixOutput(workspaceDir: string, projectDir: string, stdout: string): Map<string, ParseOutput> {
   const testsMap = new Map<string, ParseOutput>();
   const tests = stdout
     .split('Including tags: [:""]')[1] // compilation and other noise before
@@ -21,8 +23,8 @@ export function parseMixOutput(projectDir: string, stdout: string): Map<string, 
     .slice(0, -1); // Finished in 0.2 seconds\n2 doctests, 29 tests, 0 failures, 31 excluded\n\nRandomized with seed 0
 
   for (const testFile of tests) {
-    const testFilePath = testFile.shift()!.split(' ')!.pop()!.slice(1, -1);
-    const absolutePath = path.join(projectDir, testFilePath);
+    const relativePath = testFile.shift()!.split(' ')!.pop()!.slice(1, -1);
+    const absolutePath = path.join(projectDir, relativePath);
 
     const testInfos: TestInfo[] = testFile.map((test) => {
       //  * doctest Phoenix.Naming.camelize/1 (1) (excluded) [L#5]\r  * doctest Phoenix.Naming.camelize/1 (1) (excluded) [L#5]
@@ -32,9 +34,11 @@ export function parseMixOutput(projectDir: string, stdout: string): Map<string, 
       const line = parseInt(lineString.match(/\d+/)![0]);
       parts.pop(); // (excluded)
 
+      const id = `${path.relative(workspaceDir, absolutePath)}:${line}`;
+
       return {
         type: 'test',
-        id: `${testFilePath}:${line}`,
+        id: `${id}`,
         label: testType === 'doctest' ? 'doctest' : parts.join(' '),
         file: absolutePath,
         line: line - 1,
@@ -46,42 +50,12 @@ export function parseMixOutput(projectDir: string, stdout: string): Map<string, 
       (testInfo, index) => testInfos.findIndex((t) => t.id === testInfo.id) === index
     );
 
-    testsMap.set(testFilePath, {
+    testsMap.set(relativePath, {
       tests: filteredTestInfos,
-      file: absolutePath,
+      absolutePath: absolutePath,
+      relativePath: relativePath,
     });
   }
 
   return testsMap;
-}
-
-export function parseTestErrors(stdout: string): TestErrors {
-  const errors = stdout
-    .split(/\n\s*\n/)
-    .filter((possibleError) => possibleError.trim().match(/^\d+\)/))
-    .map((error) => {
-      const path = error
-        .split('\n')
-        .find((line) => line.match(/\.exs:\d+/))!
-        .trim();
-      return [path, error];
-    });
-
-  const errorsHash: TestErrors = {};
-
-  for (const [path, error] of errors) {
-    if (path) {
-      if (errorsHash[path]) {
-        errorsHash[path] += `\n${error}`;
-      } else {
-        errorsHash[path] = error;
-      }
-    }
-  }
-
-  return errorsHash;
-}
-
-export function parseLineTestErrors(path: string, stdout: string): TestErrors {
-  return stdout.includes(path) ? { [path]: stdout } : {};
 }

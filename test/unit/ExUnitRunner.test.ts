@@ -8,15 +8,16 @@ const expect = chai.expect;
 
 describe('ExUnitRunner', async () => {
   let exUnit: ExUnitRunner;
+
   beforeEach(() => {
-    exUnit = new ExUnitRunner('my_project');
+    exUnit = new ExUnitRunner('my_project', process.cwd());
   });
 
   it('load all tests successfully', async () => {
     const result = await exUnit.load([PATHS.simpleProject, PATHS.umbrellaProjectAppOne]);
 
     // main test suite
-    expect(result.id).to.equal('exunit_suite_root');
+    expect(result.id).to.equal('ExUnit_suite_root');
     expect(result.label).to.equal('ExUnit my_project');
     expect(result.type).to.equal('suite');
     expect(result.children).to.have.lengthOf(3);
@@ -27,7 +28,7 @@ describe('ExUnitRunner', async () => {
     ]);
 
     // test suite in sub directory
-    expect(result.children[2].id).to.equal('app_one_test.exs/'); // TODO: this is not unique enough
+    expect(result.children[2].id).to.equal('app_one_test.exs/'); // TODO: this may not be unique enough
     expect(result.children[2].label).to.equal('app_one_test.exs');
     expect(result.children[2].file).to.contain('/unit/fixtures/umbrella_project/apps/app_one/test/app_one_test.exs');
   });

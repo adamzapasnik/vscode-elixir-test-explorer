@@ -123,7 +123,7 @@ export class ExUnitTestAdapter implements TestAdapter {
     this.testStatesEmitter.fire(<TestRunStartedEvent>{ type: 'started', tests });
 
     for (const test of tests) {
-      const { testResults, error } = await this.testRunner.run(this.workspace.uri.fsPath, test);
+      const { testResults, error } = await this.testRunner.evaluate(this.workspace.uri.fsPath, test);
 
       if (error) {
         this.testStatesEmitter.fire(<TestSuiteEvent>{
