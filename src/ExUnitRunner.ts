@@ -72,19 +72,19 @@ export class ExUnitRunner {
       return fs.existsSync(testDir);
     };
 
-    const isNotDepsDir = (file: string) => {
-      return !file.endsWith('deps');
+    const isNotBuildOrDepsDir = (file: string) => {
+      return !(file.endsWith('deps') || file.endsWith('_build'));
     };
 
-    var results: string[] = [];
+    const results: string[] = [];
 
-    var walk = function (currentDir: string): void {
-      var list = fs.readdirSync(currentDir);
+    const walk = function (currentDir: string): void {
+      const list = fs.readdirSync(currentDir);
 
       list.forEach(function (file: string) {
         file = path.join(currentDir, file);
-        var stat = fs.statSync(file);
-        if (stat && stat.isDirectory() && isNotDepsDir(file)) {
+        const stat = fs.statSync(file);
+        if (stat && stat.isDirectory() && isNotBuildOrDepsDir(file)) {
           walk(file);
         } else {
           if (file.endsWith('mix.exs') && hasAdjacentTestDir(file)) {

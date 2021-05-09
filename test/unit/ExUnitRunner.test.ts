@@ -76,5 +76,11 @@ describe('ExUnitRunner', async () => {
 
       expect(projectWithDepsTests).to.have.lengthOf(2);
     });
+
+    it('ignores _build directory', () => {
+      const projectWithDepsTests = exUnit.scan(fixtures.PATHS.umbrellaProject);
+
+      expect(projectWithDepsTests).to.have.lengthOf(2);
+    });
   });
 });
