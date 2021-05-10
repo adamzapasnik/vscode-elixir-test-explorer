@@ -109,7 +109,7 @@ export class ExUnitTestAdapter implements TestAdapter {
       this.log.info('TestLoadFinished', testLoadFinishedEvent);
       this.testsEmitter.fire(<TestLoadFinishedEvent>testLoadFinishedEvent);
     } catch (exception) {
-      this.testsEmitter.fire({ type: 'finished', errorMessage: `Failed parsing projects: ${exception}` });
+      this.testsEmitter.fire({ type: 'finished', errorMessage: `Error: ${exception}` });
     } finally {
       this.isLoadingTests = false;
     }

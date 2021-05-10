@@ -23,7 +23,9 @@ export class MixRunner {
           return resolve(stdout);
         }
 
-        return reject(err?.message);
+        return reject(
+          `Failed loading tests in project ${projectDir} :( Have you compiled the dependencies of this project? Error: ${err?.message}`
+        );
       });
     });
   }
