@@ -228,8 +228,4 @@ export class TestTree {
       }
     }
   }
-
-  public print() {
-    console.log('graph:', json.write(this.graph));
-  }
 }

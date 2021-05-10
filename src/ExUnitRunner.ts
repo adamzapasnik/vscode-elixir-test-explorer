@@ -17,7 +17,6 @@ export interface TestResult {
  Under the hood it uses the TestTree and the MixRunner to do so.
 */
 export class ExUnitRunner {
-  private readonly workspaceName: string;
   private readonly workspacePath: string;
   private mixRunner: MixRunner;
   private mixParser: MixParser;
@@ -27,7 +26,6 @@ export class ExUnitRunner {
     this.mixRunner = new MixRunner();
     this.mixParser = new MixParser();
     this.testTree = new TestTree(workspaceName);
-    this.workspaceName = workspaceName;
     this.workspacePath = workspacePath;
   }
 
@@ -72,8 +70,8 @@ export class ExUnitRunner {
       return fs.existsSync(testDir);
     };
 
-    const isNotBuildOrDepsDir = (file: string) => {
-      return !(file.endsWith('deps') || file.endsWith('_build'));
+    const isNotBuildDir = (file: string) => {
+      return !(file.endsWith('deps') || file.endsWith('_build') || file.endsWith('elixir_ls'));
     };
 
     const results: string[] = [];
@@ -84,7 +82,7 @@ export class ExUnitRunner {
       list.forEach(function (file: string) {
         file = path.join(currentDir, file);
         const stat = fs.statSync(file);
-        if (stat && stat.isDirectory() && isNotBuildOrDepsDir(file)) {
+        if (stat && stat.isDirectory() && isNotBuildDir(file)) {
           walk(file);
         } else {
           if (file.endsWith('mix.exs') && hasAdjacentTestDir(file)) {
