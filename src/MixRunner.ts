@@ -18,14 +18,12 @@ export class MixRunner {
         if (stderr.trim() === 'The --only option was given to "mix test" but no test was executed') {
           return resolve(stdout);
         } else if (stdout.trim().includes('== Compilation error in file')) {
-          return reject(stderr + '\n' + stdout);
+          return reject(`Failed to load tests in project ${projectDir}:\n ${stderr} \n ${stdout}`);
         } else if (stdout.trim().includes('Finished in')) {
           return resolve(stdout);
         }
 
-        return reject(
-          `Failed loading tests in project ${projectDir} :( Have you compiled the dependencies of this project? Error: ${err?.message}`
-        );
+        return reject(`Failed to load tests in project ${projectDir}:\n ${err?.message}`);
       });
     });
   }
@@ -37,11 +35,11 @@ export class MixRunner {
 
       this.currentProcess = childProcess.exec(command, { cwd: projectDir }, (err, stdout, stderr) => {
         if (stdout.includes('Paths given to "mix test" did not match any directory/file')) {
-          return reject(stdout);
+          return reject(`Failed to run tests in project ${projectDir}:\n ${stdout}`);
         }
 
         if (stdout.trim().includes('== Compilation error in file')) {
-          return reject(stderr + '\n' + stdout);
+          return reject(`Failed to run tests in project ${projectDir}:\n ${stderr} + '\n' + ${stdout}`);
         }
 
         if (stdout.trim().includes('Finished in')) {
@@ -49,7 +47,7 @@ export class MixRunner {
         }
 
         if (stderr.trim()) {
-          return reject(stderr);
+          return reject(`Failed to run tests in project ${projectDir}:\n stderr`);
         }
 
         return resolve(stdout);
