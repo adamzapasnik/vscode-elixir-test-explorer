@@ -5,11 +5,11 @@ import { ExUnitTestAdapter } from './ExUnitTestAdapter';
 import { ExUnitRunner } from './ExUnitRunner';
 
 export async function activate(context: vscode.ExtensionContext) {
-  const workspaceFolder = (vscode.workspace.workspaceFolders || [])[0];
+  const logWorkspaceFolder = (vscode.workspace.workspaceFolders || [])[0];
 
   // create a simple logger that can be configured with the configuration variables
   // `exampleExplorer.logpanel` and `exampleExplorer.logfile`
-  const log = new Log('ExUnit', workspaceFolder, 'ExUnit Explorer Log');
+  const log = new Log('ExUnit', logWorkspaceFolder, 'ExUnit Explorer Log');
   context.subscriptions.push(log);
 
   // get the Test Explorer extension
