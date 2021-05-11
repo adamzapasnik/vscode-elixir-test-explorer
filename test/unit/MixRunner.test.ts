@@ -16,7 +16,7 @@ describe('MixRunner', async () => {
       expect(output).to.contain('Finished in ');
 
       expect(output).to.contain('test/nested_dir/nested_test.exs');
-      expect(output).to.contain('(excluded)'); // one of the tests if failing
+      expect(output).to.contain('(excluded)'); // one of the tests is failing
     });
 
     it('run command with path', async () => {

@@ -37,12 +37,11 @@ describe('TestTree', async () => {
     });
 
     it('import multiple test maps', async () => {
-      tree.import(
-        parseMixOutput(process.cwd(), PATHS.umbrellaProjectAppOne, await mix.run(PATHS.umbrellaProjectAppOne))
-      );
-      tree.import(
-        parseMixOutput(process.cwd(), PATHS.umbrellaProjectAppTwo, await mix.run(PATHS.umbrellaProjectAppTwo))
-      );
+      const project1 = await mix.run(PATHS.umbrellaProjectAppOne);
+      tree.import(parseMixOutput(process.cwd(), PATHS.umbrellaProjectAppOne, project1));
+
+      const project2 = await mix.run(PATHS.umbrellaProjectAppTwo);
+      tree.import(parseMixOutput(process.cwd(), PATHS.umbrellaProjectAppTwo, project2));
 
       const exportedTree = tree.export() as TestSuiteInfo;
 
