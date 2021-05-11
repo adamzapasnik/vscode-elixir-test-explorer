@@ -59,9 +59,9 @@ describe('TestTree', async () => {
       const exportedTree = tree.export() as TestSuiteInfo;
 
       // root
-      expect(exportedTree.id).to.to.equal('ExUnit_suite_root');
-      expect(exportedTree.label).to.to.equal('ExUnit workspaceName');
-      expect(exportedTree.file).to.to.equal(undefined);
+      expect(exportedTree.id).to.equal('ExUnit_suite_root');
+      expect(exportedTree.label).to.equal('ExUnit workspaceName');
+      expect(exportedTree.file).to.equal(undefined);
 
       // test suite (file)
       const file = exportedTree.children[0];
