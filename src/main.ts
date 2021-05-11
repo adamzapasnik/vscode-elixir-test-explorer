@@ -22,11 +22,13 @@ export async function activate(context: vscode.ExtensionContext) {
     const testHub = testExplorerExtension.exports;
 
     // this will register an ExUnitAdapter for each WorkspaceFolder
-    const exUnitRunner = new ExUnitRunner(workspaceFolder.name, workspaceFolder.uri.fsPath);
     context.subscriptions.push(
       new TestAdapterRegistrar(
         testHub,
-        (workspaceFolder) => new ExUnitTestAdapter(exUnitRunner, workspaceFolder, log),
+        (workspaceFolder) => {
+          const exUnitRunner = new ExUnitRunner(workspaceFolder.name, workspaceFolder.uri.fsPath);
+          return new ExUnitTestAdapter(exUnitRunner, workspaceFolder, log);
+        },
         log
       )
     );
