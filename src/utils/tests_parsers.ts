@@ -8,6 +8,7 @@ export interface TestErrors {
 export interface ParseOutput {
   absolutePath: string;
   relativePath: string;
+  hierarchicalPath: string;
   tests: Array<TestInfo>;
 }
 
@@ -23,7 +24,8 @@ export function parseMixOutput(workspaceDir: string, projectDir: string, stdout:
     .slice(0, -1); // Finished in 0.2 seconds\n2 doctests, 29 tests, 0 failures, 31 excluded\n\nRandomized with seed 0
 
   for (const testFile of tests) {
-    const relativePath = testFile.shift()!.split(' ')!.pop()!.slice(1, -1);
+    const projectName = path.basename(projectDir);
+    const relativePath = testFile.shift()!.split(' ')!.pop()!.slice(1, -1); // test/file.exs
     const absolutePath = path.join(projectDir, relativePath);
 
     const testInfos: TestInfo[] = testFile.map((test) => {
@@ -54,6 +56,7 @@ export function parseMixOutput(workspaceDir: string, projectDir: string, stdout:
       tests: filteredTestInfos,
       absolutePath: absolutePath,
       relativePath: relativePath,
+      hierarchicalPath: path.join(projectName, relativePath),
     });
   }
 

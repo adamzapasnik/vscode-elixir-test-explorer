@@ -3,7 +3,7 @@ import 'mocha';
 import { ExUnitRunner } from '../../src/ExUnitRunner';
 import { PATHS } from './fixtures/fixtures';
 import * as fixtures from './fixtures/fixtures';
-import { TestSuiteInfo } from 'vscode-test-adapter-api';
+import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
 
 const expect = chai.expect;
 
@@ -21,22 +21,24 @@ describe('ExUnitRunner', async () => {
     expect(result.id).to.equal('ExUnit_suite_root');
     expect(result.label).to.equal('ExUnit my_project');
     expect(result.type).to.equal('suite');
-    expect(result.children).to.have.lengthOf(3);
-    expect(result.children.map((x) => x.id)).to.deep.equal([
-      'simple_project_test.exs/',
-      'nested_dir/',
-      'app_one_test.exs/',
-    ]);
+    expect(result.children).to.have.lengthOf(2);
+    expect(result.children.map((x) => x.id)).to.deep.equal(['simple_project/', 'app_one/']);
 
-    // test suite in sub directory
-    expect(result.children[2].id).to.equal('app_one_test.exs/'); // TODO: this may not be unique enough
-    expect(result.children[2].label).to.equal('app_one_test.exs');
-    expect(result.children[2].file).to.contain('/unit/fixtures/umbrella_project/apps/app_one/test/app_one_test.exs');
+    // test suite (sub directory)
+    expect(result.children[1].id).to.equal('app_one/'); // TODO: this may not be unique enough
+    expect(result.children[1].label).to.equal('app_one');
+    expect(result.children[1].file).to.contain('/unit/fixtures/umbrella_project/apps/app_one/test/app_one_test.exs');
+
+    // test suite (file)
+    expect((result.children[0] as TestSuiteInfo).children).to.have.lengthOf(2);
+    expect((result.children[0] as TestSuiteInfo).children.map((x) => x.id)).to.contain(
+      'simple_project/simple_project_test.exs/',
+      'simple_project/nested_dir/'
+    );
 
     // test
-    expect((result.children[0] as TestSuiteInfo).children).to.have.lengthOf(3);
-    expect((result.children[0] as TestSuiteInfo).children.map((x) => x.id)).to.contain(
-      'test/unit/fixtures/simple_project/test/simple_project_test.exs:5'
+    expect(((result.children[0] as TestSuiteInfo).children[0] as TestInfo).file).to.contain(
+      '/simple_project/test/simple_project_test.exs'
     );
   });
 

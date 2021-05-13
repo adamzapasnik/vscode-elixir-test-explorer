@@ -1,6 +1,7 @@
-import { Graph, json } from 'graphlib';
+import { Graph } from 'graphlib';
 import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
 import { ParseOutput } from './utils/tests_parsers';
+import path = require('path');
 
 export interface Test {
   kind: 'test' | 'suite';
@@ -101,7 +102,7 @@ export class TestTree {
     let lastSuite: TestSuite = this.root;
 
     for (const [_, value] of testsMap) {
-      const pathParts = value.relativePath.split('/');
+      const pathParts = value.hierarchicalPath.split(path.sep);
 
       let runningPath = '';
 

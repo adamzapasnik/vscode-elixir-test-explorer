@@ -1,6 +1,6 @@
 import * as chai from 'chai';
 import 'mocha';
-import { TestSuiteInfo } from 'vscode-test-adapter-api';
+import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
 import { MixRunner } from '../../src/MixRunner';
 import { TestTree } from '../../src/TestTree';
 import { parseMixOutput } from '../../src/utils/tests_parsers';
@@ -32,8 +32,8 @@ describe('TestTree', async () => {
 
       const exportedTree = tree.export() as TestSuiteInfo;
 
-      expect(exportedTree.children).to.have.lengthOf(2);
-      expect(exportedTree.children.map((x) => x.id)).to.deep.equal(['simple_project_test.exs/', 'nested_dir/']);
+      expect(exportedTree.children).to.have.lengthOf(1);
+      expect(exportedTree.children.map((x) => x.id)).to.deep.equal(['simple_project/']);
     });
 
     it('import multiple test maps', async () => {
@@ -47,7 +47,7 @@ describe('TestTree', async () => {
 
       expect(exportedTree).to.not.be.undefined;
       expect(exportedTree.children).to.have.lengthOf(2);
-      expect(exportedTree.children.map((x) => x.id)).to.deep.equal(['app_one_test.exs/', 'app_two_test.exs/']);
+      expect(exportedTree.children.map((x) => x.id)).to.deep.equal(['app_one/', 'app_two/']);
     });
   });
 
@@ -62,26 +62,26 @@ describe('TestTree', async () => {
       expect(exportedTree.label).to.equal('ExUnit workspaceName');
       expect(exportedTree.file).to.equal(undefined);
 
-      // test suite (file)
-      const file = exportedTree.children[0];
-      expect(file.type).to.equal('suite');
-      expect(file.label).to.equal('simple_project_test.exs');
-      expect(file.id).to.equal('simple_project_test.exs/');
-      expect(file.file).to.contain('/simple_project/test/simple_project_test.exs');
+      // test suite (directory)
+      const directory = exportedTree.children[0] as TestSuiteInfo;
+      expect(directory.type).to.equal('suite');
+      expect(directory.label).to.equal('simple_project');
+      expect(directory.id).to.equal('simple_project/');
+      expect(directory.file).to.contain('/test/nested_dir/nested_test.exs');
 
-      // nested test suite
-      const suite = exportedTree.children[1];
+      // nested test suite (file)
+      const suite = directory.children[0] as TestSuiteInfo;
       expect(suite.type).to.equal('suite');
-      expect(suite.label).to.equal('nested_dir');
-      expect(suite.id).to.equal('nested_dir/');
-      expect(suite.file).to.contain('/simple_project/test/nested_dir/nested_test.exs');
+      expect(suite.label).to.equal('simple_project_test.exs');
+      expect(suite.id).to.equal('simple_project/simple_project_test.exs/');
+      expect(suite.file).to.contain('/simple_project/test/simple_project_test.exs');
 
       // test suite (file)
-      const test = (exportedTree.children[1] as TestSuiteInfo).children[0];
-      expect(test.type).to.equal('suite');
-      expect(test.label).to.equal('nested_test.exs');
-      expect(test.id).to.equal('nested_dir/nested_test.exs/');
-      expect(test.file).to.contain('/simple_project/test/nested_dir/nested_test.exs');
+      const test = suite.children[1] as TestInfo;
+      expect(test.type).to.equal('test');
+      expect(test.label).to.equal('greets the world');
+      expect(test.id).to.equal('test/unit/fixtures/simple_project/test/simple_project_test.exs:5');
+      expect(test.file).to.contain('simple_project/test/simple_project_test.exs');
     });
   });
 });
