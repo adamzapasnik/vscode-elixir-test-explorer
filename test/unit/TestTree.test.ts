@@ -27,7 +27,7 @@ describe('TestTree', async () => {
 
   describe('import', () => {
     it('import single test map', async () => {
-      const testMaps = parseMixOutput(process.cwd(), PATHS.simpleProject, await mix.run(PATHS.simpleProject));
+      const testMaps = parseMixOutput(PATHS.simpleProject, await mix.run(PATHS.simpleProject));
       tree.import(testMaps);
 
       const exportedTree = tree.export() as TestSuiteInfo;
@@ -38,10 +38,10 @@ describe('TestTree', async () => {
 
     it('import multiple test maps', async () => {
       const project1 = await mix.run(PATHS.umbrellaProjectAppOne);
-      tree.import(parseMixOutput(process.cwd(), PATHS.umbrellaProjectAppOne, project1));
+      tree.import(parseMixOutput(PATHS.umbrellaProjectAppOne, project1));
 
       const project2 = await mix.run(PATHS.umbrellaProjectAppTwo);
-      tree.import(parseMixOutput(process.cwd(), PATHS.umbrellaProjectAppTwo, project2));
+      tree.import(parseMixOutput(PATHS.umbrellaProjectAppTwo, project2));
 
       const exportedTree = tree.export() as TestSuiteInfo;
 
@@ -53,7 +53,7 @@ describe('TestTree', async () => {
 
   describe('test suites data integrity', () => {
     it('test suites and tests contain correct file, label and id', async () => {
-      tree.import(parseMixOutput(process.cwd(), PATHS.simpleProject, await mix.run(PATHS.simpleProject)));
+      tree.import(parseMixOutput(PATHS.simpleProject, await mix.run(PATHS.simpleProject)));
 
       const exportedTree = tree.export() as TestSuiteInfo;
 
@@ -67,7 +67,7 @@ describe('TestTree', async () => {
       expect(directory.type).to.equal('suite');
       expect(directory.label).to.equal('simple_project');
       expect(directory.id).to.equal('simple_project/');
-      expect(directory.file).to.contain('/test/nested_dir/nested_test.exs');
+      expect(directory.file).to.be.undefined;
 
       // nested test suite (file)
       const suite = directory.children[0] as TestSuiteInfo;
@@ -80,7 +80,7 @@ describe('TestTree', async () => {
       const test = suite.children[1] as TestInfo;
       expect(test.type).to.equal('test');
       expect(test.label).to.equal('greets the world');
-      expect(test.id).to.equal('test/unit/fixtures/simple_project/test/simple_project_test.exs:5');
+      expect(test.id).to.equal('test/simple_project_test.exs:5');
       expect(test.file).to.contain('simple_project/test/simple_project_test.exs');
     });
   });

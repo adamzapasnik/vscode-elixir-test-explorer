@@ -9,11 +9,12 @@ export interface ParseOutput {
   absolutePath: string;
   relativePath: string;
   hierarchicalPath: string;
+  mixPath: string;
   tests: Array<TestInfo>;
 }
 
 // Used by load method, does not evaluate whether tests have passed/failed.
-export function parseMixOutput(workspaceDir: string, projectDir: string, stdout: string): Map<string, ParseOutput> {
+export function parseMixOutput(projectDir: string, stdout: string): Map<string, ParseOutput> {
   const testsMap = new Map<string, ParseOutput>();
   const tests = stdout
     .split('Including tags: [:""]')[1] // compilation and other noise before
@@ -36,7 +37,7 @@ export function parseMixOutput(workspaceDir: string, projectDir: string, stdout:
       const line = parseInt(lineString.match(/\d+/)![0]);
       parts.pop(); // (excluded)
 
-      const id = `${path.relative(workspaceDir, absolutePath)}:${line}`;
+      const id = `${relativePath}:${line}`;
 
       return {
         type: 'test',
@@ -57,6 +58,7 @@ export function parseMixOutput(workspaceDir: string, projectDir: string, stdout:
       absolutePath: absolutePath,
       relativePath: relativePath,
       hierarchicalPath: path.join(projectName, relativePath),
+      mixPath: absolutePath.substring(0, absolutePath.length - relativePath.length),
     });
   }
 

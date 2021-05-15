@@ -1,4 +1,4 @@
-import { Graph } from 'graphlib';
+import { Graph, json } from 'graphlib';
 import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
 import { ParseOutput } from './utils/tests_parsers';
 import path = require('path');
@@ -8,6 +8,7 @@ export interface Test {
   id: string;
   label: string;
   file: string;
+  mixPath: string;
   belongsTo: TestSuite;
   description?: string;
   tooltip?: string;
@@ -26,6 +27,7 @@ export interface TestSuite {
   description?: string;
   tooltip?: string;
   file?: string;
+  mixPath: string;
   line?: number;
   debuggable?: boolean;
   errored: boolean;
@@ -59,11 +61,12 @@ export class TestTree {
       tooltip: 'Test Suite',
       errored: false,
       file: undefined,
+      mixPath: './',
     };
     this.graph.setNode('ExUnit_suite_root', this.root);
   }
 
-  public getNode(nodeId: string): Test | TestSuiteInfo {
+  public getNode(nodeId: string): Test | TestSuite {
     return this.graph.node(nodeId);
   }
 
@@ -118,13 +121,15 @@ export class TestTree {
           parentNodeId = runningPath;
         }
 
+        const testFilePath = pathParts[i].includes('.exs') ? value.absolutePath : undefined;
         const parentNode = this.graph.node(parentNodeId) as TestSuite;
         runningPath += `${pathParts[i]}/`;
 
         lastSuite = this.addSuite({
           kind: 'suite',
           id: runningPath, // TODO: This may not be unique enough for test suites.
-          file: value.absolutePath,
+          file: testFilePath,
+          mixPath: value.mixPath,
           label: pathParts[i],
           belongsTo: parentNode,
           description: undefined,
@@ -142,6 +147,7 @@ export class TestTree {
           id: test.id,
           label: test.label,
           file: test.file!,
+          mixPath: value.mixPath,
           belongsTo: lastSuite!,
           description: test.description,
           tooltip: test.tooltip,
@@ -228,5 +234,9 @@ export class TestTree {
         return buildNode(options.nodeId!);
       }
     }
+  }
+
+  print(): void {
+    console.log(json.write(this.graph));
   }
 }

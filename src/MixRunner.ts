@@ -29,17 +29,17 @@ export class MixRunner {
   }
 
   // TODO: can these two methods not be merged? I don't understand the difference.
-  public async evaluate(projectDir: string, filePath: string = ''): Promise<string> {
+  public async evaluate(mixPath: string, filePath: string = ''): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       const command = `mix test ${filePath}`;
 
-      this.currentProcess = childProcess.exec(command, { cwd: projectDir }, (err, stdout, stderr) => {
+      this.currentProcess = childProcess.exec(command, { cwd: mixPath }, (err, stdout, stderr) => {
         if (stdout.includes('Paths given to "mix test" did not match any directory/file')) {
-          return reject(`Failed to run tests in project ${projectDir}:\n ${stdout}`);
+          return reject(`Failed to run tests in project ${mixPath}:\n ${stdout}`);
         }
 
         if (stdout.trim().includes('== Compilation error in file')) {
-          return reject(`Failed to run tests in project ${projectDir}:\n ${stderr} + '\n' + ${stdout}`);
+          return reject(`Failed to run tests in project ${mixPath}:\n ${stderr} + '\n' + ${stdout}`);
         }
 
         if (stdout.trim().includes('Finished in')) {
@@ -47,7 +47,7 @@ export class MixRunner {
         }
 
         if (stderr.trim()) {
-          return reject(`Failed to run tests in project ${projectDir}:\n stderr`);
+          return reject(`Failed to run tests in project ${mixPath}:\n ${stderr}`);
         }
 
         return resolve(stdout);

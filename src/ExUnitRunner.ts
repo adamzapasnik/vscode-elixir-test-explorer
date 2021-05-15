@@ -37,7 +37,7 @@ export class ExUnitRunner {
     await Promise.all(
       testDirs.map(async (testDir) => {
         const stdout = await this.mixRunner.run(testDir);
-        const testsMap = parseMixOutput(this.workspacePath, testDir, stdout);
+        const testsMap = parseMixOutput(testDir, stdout);
         this.testTree.import(testsMap);
       })
     );
@@ -45,17 +45,18 @@ export class ExUnitRunner {
     return this.testTree.export() as TestSuiteInfo;
   }
 
-  public async evaluate(testDir: string, nodeId: string): Promise<{ testResults?: TestResult[]; error?: string }> {
+  public async evaluate(nodeId: string): Promise<{ testResults?: TestResult[]; error?: string }> {
     try {
-      const node = this.testTree.export({ scope: 'NODE_ID', nodeId: nodeId });
-      const isLineTest = /.*\:\d+$/.test(node.id!);
-      const stdout = await this.mixRunner.evaluate(testDir, node.file!);
+      const testNode = this.testTree.getNode(nodeId);
+      const stdout = await this.mixRunner.evaluate(testNode.mixPath, testNode.file!);
+      const testExplorerNode = this.testTree.export({ scope: 'NODE_ID', nodeId: nodeId });
 
       let testResults;
+      const isLineTest = /.*\:\d+$/.test(testExplorerNode.id!);
       if (isLineTest) {
-        testResults = this.mixParser.parseTest(stdout, node);
+        testResults = this.mixParser.parseTest(stdout, testExplorerNode);
       } else {
-        testResults = this.mixParser.parseTests(stdout, node);
+        testResults = this.mixParser.parseTests(stdout, testExplorerNode);
       }
 
       return { testResults: testResults };
