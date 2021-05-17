@@ -11,7 +11,7 @@ describe('ExUnitRunner', async () => {
   let exUnit: ExUnitRunner;
 
   beforeEach(() => {
-    exUnit = new ExUnitRunner('my_project', process.cwd());
+    exUnit = new ExUnitRunner('my_project');
   });
 
   describe('load', () => {

@@ -10,20 +10,20 @@ export class MixRunner {
     this.currentProcess = undefined;
   }
 
-  public async run(projectDir: string, path = ''): Promise<string> {
+  public async run(mixPath: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-      const command = `mix test --trace --seed=0 --only="" ${path}`;
+      const command = `mix test --trace --seed=0 --only=""`;
 
-      this.currentProcess = childProcess.exec(command, { cwd: projectDir }, (err, stdout, stderr) => {
+      this.currentProcess = childProcess.exec(command, { cwd: mixPath }, (err, stdout, stderr) => {
         if (stderr.trim() === 'The --only option was given to "mix test" but no test was executed') {
           return resolve(stdout);
         } else if (stdout.trim().includes('== Compilation error in file')) {
-          return reject(`Failed to load tests in project ${projectDir}:\n ${stderr} \n ${stdout}`);
+          return reject(`Failed to load tests in project ${mixPath}:\n ${stderr} \n ${stdout}`);
         } else if (stdout.trim().includes('Finished in')) {
           return resolve(stdout);
         }
 
-        return reject(`Failed to load tests in project ${projectDir}:\n ${err?.message}`);
+        return reject(`Failed to load tests in project ${mixPath}:\n ${err?.message}`);
       });
     });
   }
