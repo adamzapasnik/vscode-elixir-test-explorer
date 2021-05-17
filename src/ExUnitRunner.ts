@@ -17,16 +17,14 @@ export interface TestResult {
  Under the hood it uses the TestTree and the MixRunner to do so.
 */
 export class ExUnitRunner {
-  private readonly workspacePath: string;
   private mixRunner: MixRunner;
   private mixParser: MixParser;
   private testTree: TestTree;
 
-  constructor(workspaceName: string, workspacePath: string) {
+  constructor(workspaceName: string) {
     this.mixRunner = new MixRunner();
     this.mixParser = new MixParser();
     this.testTree = new TestTree(workspaceName);
-    this.workspacePath = workspacePath;
   }
 
   public cancelProcess() {

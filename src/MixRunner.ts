@@ -33,7 +33,7 @@ export class MixRunner {
     return new Promise<string>((resolve, reject) => {
       const command = `mix test ${filePath}`;
 
-      this.currentProcess = childProcess.exec(command, { cwd: mixPath }, (err, stdout, stderr) => {
+      this.currentProcess = childProcess.exec(command, { cwd: mixPath }, (_, stdout, stderr) => {
         if (stdout.includes('Paths given to "mix test" did not match any directory/file')) {
           return reject(`Failed to run tests in project ${mixPath}:\n ${stdout}`);
         }
