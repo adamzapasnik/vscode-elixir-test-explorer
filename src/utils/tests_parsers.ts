@@ -5,8 +5,17 @@ export interface TestErrors {
   [key: string]: string;
 }
 
-export function parseTests(projectDir: string, stdout: string): Map<string, Array<TestInfo>> {
-  const testsMap = new Map();
+export interface ParseOutput {
+  absolutePath: string;
+  relativePath: string;
+  hierarchicalPath: string;
+  mixPath: string;
+  tests: Array<TestInfo>;
+}
+
+// Used by load method, does not evaluate whether tests have passed/failed.
+export function parseMixOutput(projectDir: string, stdout: string): Map<string, ParseOutput> {
+  const testsMap = new Map<string, ParseOutput>();
   const tests = stdout
     .split('Including tags: [:""]')[1] // compilation and other noise before
     .trim()
@@ -16,7 +25,10 @@ export function parseTests(projectDir: string, stdout: string): Map<string, Arra
     .slice(0, -1); // Finished in 0.2 seconds\n2 doctests, 29 tests, 0 failures, 31 excluded\n\nRandomized with seed 0
 
   for (const testFile of tests) {
-    const testFilePath = testFile.shift()!.split(' ')!.pop()!.slice(1, -1);
+    const projectName = path.basename(projectDir);
+    const relativePath = testFile.shift()!.split(' ')!.pop()!.slice(1, -1); // test/file.exs
+    const absolutePath = path.join(projectDir, relativePath);
+
     const testInfos: TestInfo[] = testFile.map((test) => {
       //  * doctest Phoenix.Naming.camelize/1 (1) (excluded) [L#5]\r  * doctest Phoenix.Naming.camelize/1 (1) (excluded) [L#5]
       const parts = test.split('\r').slice(1).join('').trim().substring(2).split(' ');
@@ -25,53 +37,30 @@ export function parseTests(projectDir: string, stdout: string): Map<string, Arra
       const line = parseInt(lineString.match(/\d+/)![0]);
       parts.pop(); // (excluded)
 
+      const id = `${relativePath}:${line}`;
+
       return {
         type: 'test',
-        id: `${testFilePath}:${line}`,
+        id: `${id}`,
         label: testType === 'doctest' ? 'doctest' : parts.join(' '),
-        file: path.join(projectDir, testFilePath),
+        file: absolutePath,
         line: line - 1,
       };
     });
 
     // filter out multiple doctests or macro generated tests
-    const uniques = testInfos.filter((testInfo, index) => testInfos.findIndex((t) => t.id === testInfo.id) === index);
+    const filteredTestInfos = testInfos.filter(
+      (testInfo, index) => testInfos.findIndex((t) => t.id === testInfo.id) === index
+    );
 
-    // testFilePath can be printed multiple times
-    const parsedTests = testsMap.get(testFilePath) || [];
-    testsMap.set(testFilePath, parsedTests.concat(uniques));
+    testsMap.set(relativePath, {
+      tests: filteredTestInfos,
+      absolutePath: absolutePath,
+      relativePath: relativePath,
+      hierarchicalPath: path.join(projectName, relativePath),
+      mixPath: absolutePath.substring(0, absolutePath.length - relativePath.length),
+    });
   }
 
   return testsMap;
-}
-
-export function parseTestErrors(stdout: string): TestErrors {
-  const errors = stdout
-    .split(/\n\s*\n/)
-    .filter((possibleError) => possibleError.trim().match(/^\d+\)/))
-    .map((error) => {
-      const path = error
-        .split('\n')
-        .find((line) => line.match(/\.exs:\d+/))!
-        .trim();
-      return [path, error];
-    });
-
-  const errorsHash: TestErrors = {};
-
-  for (const [path, error] of errors) {
-    if (path) {
-      if (errorsHash[path]) {
-        errorsHash[path] += `\n${error}`;
-      } else {
-        errorsHash[path] = error;
-      }
-    }
-  }
-
-  return errorsHash;
-}
-
-export function parseLineTestErrors(path: string, stdout: string): TestErrors {
-  return stdout.includes(path) ? { [path]: stdout } : {};
 }

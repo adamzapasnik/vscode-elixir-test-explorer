@@ -1,21 +1,26 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import {
   TestAdapter,
-  TestLoadStartedEvent,
-  TestLoadFinishedEvent,
-  TestRunStartedEvent,
-  TestRunFinishedEvent,
-  TestSuiteEvent,
   TestEvent,
+  TestLoadFinishedEvent,
+  TestLoadStartedEvent,
+  TestRunFinishedEvent,
+  TestRunStartedEvent,
+  TestSuiteEvent,
 } from 'vscode-test-adapter-api';
 import { Log } from 'vscode-test-adapter-util';
-import { ExUnit } from './exUnit';
+import { ExUnitRunner } from './ExUnitRunner';
 
-import * as path from 'path';
-import * as fs from 'fs';
+/*
+  ExUnitTestAdapter is the adapter for Test Explorer. 
 
-export class ExUnitAdapter implements TestAdapter {
+  It uses the vs code event bus to communicate to Test Explorer.
+  It delegates to the ExUnitRunner for when file changes occur.
+*/
+export class ExUnitTestAdapter implements TestAdapter {
   private disposables: { dispose(): void }[] = [];
+  private isLoadingTests = false;
 
   private readonly testsEmitter = new vscode.EventEmitter<TestLoadStartedEvent | TestLoadFinishedEvent>();
   private readonly testStatesEmitter = new vscode.EventEmitter<
@@ -33,12 +38,14 @@ export class ExUnitAdapter implements TestAdapter {
     return this.autorunEmitter.event;
   }
 
-  private exUnit: ExUnit;
-
-  constructor(public readonly workspace: vscode.WorkspaceFolder, private readonly log: Log) {
+  constructor(
+    private testRunner: ExUnitRunner,
+    public readonly workspace: vscode.WorkspaceFolder,
+    private readonly log: Log
+  ) {
     this.log.info('Initializing ExUnit adapter');
 
-    this.exUnit = new ExUnit(workspace);
+    this.testRunner = testRunner;
 
     this.disposables.push(this.testsEmitter);
     this.disposables.push(this.testStatesEmitter);
@@ -50,18 +57,21 @@ export class ExUnitAdapter implements TestAdapter {
       }),
       this
     );
+
     this.disposables.push(
       vscode.workspace.onDidSaveTextDocument((document) => {
         this.onFileChange(document);
       }),
       this
     );
+
     this.disposables.push(
       vscode.workspace.onDidRenameFiles((fileRenameEvent) => {
         this.onFileRename(fileRenameEvent);
       }),
       this
     );
+
     this.disposables.push(
       vscode.workspace.onDidDeleteFiles((fileDeleteEvent) => {
         this.onFileDelete(fileDeleteEvent);
@@ -71,34 +81,49 @@ export class ExUnitAdapter implements TestAdapter {
   }
 
   async load(): Promise<void> {
-    this.log.info('Loading tests');
+    if (this.isLoadingTests) {
+      return;
+    }
 
-    const mixPath = path.join(this.getProjectDir(), 'mix.exs');
-    const testsPath = path.join(this.getProjectDir(), 'test');
-
-    if (!this.isAdapterEnabled() || !fs.existsSync(mixPath) || !fs.existsSync(testsPath)) {
+    if (!this.isAdapterEnabled()) {
       this.log.info('Skipped loading');
       return;
     }
 
+    this.log.info('Loading tests');
+    this.isLoadingTests = true;
     this.testsEmitter.fire(<TestLoadStartedEvent>{ type: 'started' });
 
-    const { tests, error } = await this.exUnit.reloadTests(this.getProjectDir());
+    try {
+      const testDirs = this.testRunner.scan(this.workspace.uri.fsPath);
+      this.log.info('Found projects:', testDirs);
 
-    this.testsEmitter.fire(<TestLoadFinishedEvent>{
-      type: 'finished',
-      suite: error ? undefined : tests,
-      errorMessage: error,
-    });
+      const suite = await this.testRunner.load(testDirs);
+
+      const testLoadFinishedEvent = {
+        type: 'finished',
+        suite: suite,
+        errorMessage: undefined,
+      };
+
+      this.log.info('TestLoadFinished', testLoadFinishedEvent);
+      this.testsEmitter.fire(<TestLoadFinishedEvent>testLoadFinishedEvent);
+    } catch (exception) {
+      this.testsEmitter.fire({ type: 'finished', errorMessage: `Error: ${exception}` });
+    } finally {
+      this.isLoadingTests = false;
+    }
   }
 
+  // TODO: this is not how Test Adapter API recommends, run is implemented:
+  // https://github.com/hbenl/vscode-test-adapter-api#running-the-tests
   async run(tests: string[]): Promise<void> {
     this.log.info(`Running tests ${JSON.stringify(tests)}`);
 
     this.testStatesEmitter.fire(<TestRunStartedEvent>{ type: 'started', tests });
 
     for (const test of tests) {
-      const { testResults, error } = await this.exUnit.runTests(this.getProjectDir(), test);
+      const { testResults, error } = await this.testRunner.evaluate(test);
 
       if (error) {
         this.testStatesEmitter.fire(<TestSuiteEvent>{
@@ -125,7 +150,7 @@ export class ExUnitAdapter implements TestAdapter {
   }
 
   cancel(): void {
-    this.exUnit.cancelProcess();
+    this.testRunner.cancelProcess();
   }
 
   dispose(): void {
@@ -134,22 +159,6 @@ export class ExUnitAdapter implements TestAdapter {
       disposable.dispose();
     }
     this.disposables = [];
-  }
-
-  private async reload(filePath: string) {
-    this.log.info(`Reloading tests in ${filePath}`);
-
-    this.testsEmitter.fire(<TestLoadStartedEvent>{ type: 'started' });
-
-    const { tests, error } = await this.exUnit.reloadTest(this.getProjectDir(), filePath);
-
-    const event: TestLoadFinishedEvent = {
-      type: 'finished',
-      errorMessage: error,
-      suite: tests,
-    };
-
-    this.testsEmitter.fire(event);
   }
 
   private onConfigChange(configChange: vscode.ConfigurationChangeEvent): void {
@@ -174,49 +183,39 @@ export class ExUnitAdapter implements TestAdapter {
       return;
     }
     const filepath = textDocument.uri.fsPath;
-    this.log.info(`${filepath} was saved - checking if this effects ${this.getProjectDir()}`);
+    this.log.info(`${filepath} was saved - checking if this effects ${this.workspace.uri.fsPath}`);
     // we should be checking projectDir
-    const testsDir = path.join(this.getProjectDir(), 'test');
+    const testsDir = path.join(this.workspace.uri.fsPath, 'test');
     if (filepath.endsWith('.exs') && filepath.startsWith(testsDir)) {
       this.log.info('A test file has been edited, reloading tests.');
-      this.reload(filepath);
+      this.load(); // TODO: optimise, only reload one file
     }
   }
 
   private onFileRename(fileRenameEvent: vscode.FileRenameEvent): void {
-    const testsDir = path.join(this.getProjectDir(), 'test');
+    const testsDir = path.join(this.workspace.uri.fsPath, 'test');
     const isTestFileChanged = fileRenameEvent.files.some(
       (file) => file.oldUri.fsPath.endsWith('.exs') && file.oldUri.fsPath.startsWith(testsDir)
     );
 
-    // TODO: optimize it to run reload
     if (isTestFileChanged) {
-      this.load();
+      this.load(); // TODO: optimise, only reload one file
     }
   }
 
   private onFileDelete(fileDeleteEvent: vscode.FileDeleteEvent): void {
-    const testsDir = path.join(this.getProjectDir(), 'test');
+    const testsDir = path.join(this.workspace.uri.fsPath, 'test');
     const isTestFileDeleted = fileDeleteEvent.files.some(
       (file) => file.fsPath.endsWith('.exs') && file.fsPath.startsWith(testsDir)
     );
 
-    // TODO: optimize it to run reload
     if (isTestFileDeleted) {
-      this.load();
+      this.load(); // TODO: optimise, only reload one file
     }
   }
 
   private isAdapterEnabled(): boolean {
     const config = vscode.workspace.getConfiguration('elixirTestExplorer', this.workspace);
     return config.get('enabled', true);
-  }
-
-  private getProjectDir(): string {
-    const config = vscode.workspace.getConfiguration('elixirTestExplorer', this.workspace);
-    const workspacePath = this.workspace.uri.fsPath;
-    const projectDir = config.get('projectDir', '');
-
-    return projectDir ? path.join(workspacePath, projectDir) : workspacePath;
   }
 }
