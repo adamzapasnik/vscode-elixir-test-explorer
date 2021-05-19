@@ -59,6 +59,7 @@
     "test-unit": "./node_modules/ts-mocha/bin/ts-mocha -p tsconfig.json test/unit/**.test.ts"
   },
   "devDependencies": {
+    "@babel/core": "^7.14.3",
     "@babel/preset-env": "^7.14.1",
     "@babel/preset-typescript": "^7.13.0",
     "@types/chai": "^4.2.17",
