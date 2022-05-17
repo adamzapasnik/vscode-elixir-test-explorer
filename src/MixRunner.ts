@@ -12,7 +12,7 @@ export class MixRunner {
 
   public async run(mixPath: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-      const command = `mix test --trace --seed=0 --only="___"`;
+      const command = `mix test --trace --seed=0 --only="*"`;
 
       this.currentProcess = childProcess.exec(command, { cwd: mixPath }, (err, stdout, stderr) => {
         if (stderr.trim() === 'The --only option was given to "mix test" but no test was executed') {
