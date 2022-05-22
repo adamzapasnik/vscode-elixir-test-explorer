@@ -67,7 +67,7 @@ export function parseMixOutput(projectDir: string, stdout: string): Map<string, 
   return testsMap;
 }
 function cleanupOutput(stdout: string) {
-  const patternBeforeMeaningfulOutput = /Including tags: \[.*?]/; //
+  const patternBeforeMeaningfulOutput = /Including tags: \[.*?]/; //we look for a pattern, in order to accomodate for variations (eg :"" and :*)
   const indexBeforeMeaningfulOutput = Math.max(stdout.search(patternBeforeMeaningfulOutput), 0);
   const meaningfulString = stdout.substring(indexBeforeMeaningfulOutput);
   return meaningfulString;
