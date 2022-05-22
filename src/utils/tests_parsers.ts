@@ -16,8 +16,10 @@ export interface ParseOutput {
 // Used by load method, does not evaluate whether tests have passed/failed.
 export function parseMixOutput(projectDir: string, stdout: string): Map<string, ParseOutput> {
   const testsMap = new Map<string, ParseOutput>();
-  const tests = stdout
-    .split('Including tags: [:""]')[1] // compilation and other noise before
+
+  const cleanOutput = cleanupOutput(stdout);
+
+  const tests = cleanOutput
     .trim()
     .split('\n\n') // tests grouped per files
     .map((string) => string.split('\n').filter((string) => string)) // sometimes there are no tests, like an empty doctest
@@ -64,3 +66,10 @@ export function parseMixOutput(projectDir: string, stdout: string): Map<string, 
 
   return testsMap;
 }
+function cleanupOutput(stdout: string) {
+  const patternBeforeMeaningfulOutput = /Including tags: \[.*?]/; //
+  const indexBeforeMeaningfulOutput = Math.max(stdout.search(patternBeforeMeaningfulOutput), 0);
+  const meaningfulString = stdout.substring(indexBeforeMeaningfulOutput);
+  return meaningfulString;
+}
+
