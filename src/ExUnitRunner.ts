@@ -59,7 +59,11 @@ export class ExUnitRunner {
 
       return { testResults: testResults };
     } catch (error) {
-      return { error };
+      if (error instanceof Error) {
+        return { error: error.message };
+      } else {
+        return { error: error ? `${error}` : undefined };
+      }
     }
   }
 
