@@ -17,7 +17,7 @@ export interface ParseOutput {
 export function parseMixOutput(projectDir: string, stdout: string): Map<string, ParseOutput> {
   const testsMap = new Map<string, ParseOutput>();
   const tests = stdout
-    .split('Including tags: [:""]')[1] // compilation and other noise before
+    .split('Including tags: [:*]')[1] // compilation and other noise before
     .trim()
     .split('\n\n') // tests grouped per files
     .map((string) => string.split('\n').filter((string) => string)) // sometimes there are no tests, like an empty doctest
