@@ -5,7 +5,7 @@
   "icon": "images/icon.png",
   "author": "Adam Zapaśnik <contact@adamzapasnik.io>",
   "publisher": "adamzapasnik",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "engines": {
     "vscode": "^1.52.0"
   },
