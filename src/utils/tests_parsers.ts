@@ -21,6 +21,7 @@ export function parseMixOutput(projectDir: string, stdout: string): Map<string, 
 
   const tests = cleanOutput
     .trim()
+    .replace(/All tests have been excluded./g, "") // Remove the line "All tests have been excluded." introduced by elixir 1.14.0
     .split('\n\n') // tests grouped per files
     .map((string) => string.split('\n').filter((string) => string)) // sometimes there are no tests, like an empty doctest
     .filter((arr) => arr.length > 1) // Some files don't have tests
