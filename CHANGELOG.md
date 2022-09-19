@@ -2,6 +2,10 @@
 
 All notable changes to the vscode-elixir-test-explorer extension will be documented in this file.
 
+## v0.5.0 - 19 September 2022
+
+- Elixir 1.14.0 support #21
+
 ## v0.4.0 - 25 May 2022
 
 - Fix a bug introduced in v0.3.0 #18
