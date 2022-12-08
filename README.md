@@ -1,5 +1,10 @@
 # Elixir Test Adapter
 
+## Requirements
+
+Elixir version >= **v1.11** (Line and file information was added in **v1.11**, so this extension won't work with earlier versions)
+
+
 ## Features
 
 Shows Elixir tests in a sidebar. Scans all your elixir projects in your workspace.
