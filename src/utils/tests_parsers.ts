@@ -13,42 +13,61 @@ export interface ParseOutput {
   tests: Array<TestInfo>;
 }
 
+function splitToTestFileLinesChunk(stdout: string): string[] {
+  const linesPerTestFileRegex = /(^\w.+ \[(?:.+\.exs)\](?:\s+\*.+\[L#\d+\])+)/gm;
+  const matches = stdout.match(linesPerTestFileRegex);
+  return matches || [];
+}
+
+function testFileLinesToFileAndTests(chunk: string): { fileLine: string, testLines: string[] } {
+  const lines = chunk.trim().split('\n').filter(s => s);
+  return {
+    fileLine: lines[0],
+    testLines: lines.slice(1)
+  };
+}
+
+function parseTestFileName(fileLine: string): string {
+  const fileNamePartPattern = /\[(.+\.exs)\]/;
+  const matches = fileLine.match(fileNamePartPattern);
+  return matches![1];
+}
+
+function parseTestInfo(absolutePath: string, relativePath: string, testLine: string): TestInfo {
+  // * doctest Phoenix.Naming.camelize/1 (1) (excluded) [L#5]
+  const testLinePattern = /\*\s+(?<type>\w+)\s+(?<label>.+)\s+\(excluded\)\s+\[L#(?<lineNum>\d+)\]/;
+  const matches = testLine.trim().match(testLinePattern);
+  const lineNum = parseInt(matches!.groups!.lineNum);
+  const id = `${relativePath}:${lineNum}`;
+  const testType = matches!.groups!.type;
+  const label = matches!.groups!.label;
+
+  return {
+    type: 'test',
+    id: id,
+    label: testType === 'doctest' ? 'doctest' : label,
+    file: absolutePath,
+    line: lineNum - 1,
+  };
+}
+
 // Used by load method, does not evaluate whether tests have passed/failed.
 export function parseMixOutput(projectDir: string, stdout: string): Map<string, ParseOutput> {
   const testsMap = new Map<string, ParseOutput>();
 
   const cleanOutput = cleanupOutput(stdout);
 
-  const tests = cleanOutput
-    .trim()
-    .replace(/All tests have been excluded./g, "") // Remove the line "All tests have been excluded." introduced by elixir 1.14.0
-    .split('\n\n') // tests grouped per files
-    .map((string) => string.split('\n').filter((string) => string)) // sometimes there are no tests, like an empty doctest
-    .filter((arr) => arr.length > 1) // Some files don't have tests
-    .slice(0, -1); // Finished in 0.2 seconds\n2 doctests, 29 tests, 0 failures, 31 excluded\n\nRandomized with seed 0
+  const tests = splitToTestFileLinesChunk(cleanOutput)
+    .map(chunk => testFileLinesToFileAndTests(chunk))
+    .filter((obj) => obj.testLines.length > 0); // Some files don't have tests
 
   for (const testFile of tests) {
     const projectName = path.basename(projectDir);
-    const relativePath = testFile.shift()!.split(' ')!.pop()!.slice(1, -1); // test/file.exs
+    const relativePath = parseTestFileName(testFile.fileLine); // test/file.exs
     const absolutePath = path.join(projectDir, relativePath);
 
-    const testInfos: TestInfo[] = testFile.map((test) => {
-      //  * doctest Phoenix.Naming.camelize/1 (1) (excluded) [L#5]\r  * doctest Phoenix.Naming.camelize/1 (1) (excluded) [L#5]
-      const parts = test.split('\r').slice(1).join('').trim().substring(2).split(' ');
-      const testType = parts.shift(); // doctest | test | or macros (?)
-      const lineString = parts.pop() || ''; // [L#1]
-      const line = parseInt(lineString.match(/\d+/)![0]);
-      parts.pop(); // (excluded)
-
-      const id = `${relativePath}:${line}`;
-
-      return {
-        type: 'test',
-        id: `${id}`,
-        label: testType === 'doctest' ? 'doctest' : parts.join(' '),
-        file: absolutePath,
-        line: line - 1,
-      };
+    const testInfos: TestInfo[] = testFile.testLines.map((testLine) => {
+      return parseTestInfo(absolutePath, relativePath, testLine);
     });
 
     // filter out multiple doctests or macro generated tests
