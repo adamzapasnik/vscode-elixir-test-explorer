@@ -13,7 +13,7 @@ describe('TestTree', async () => {
   let mix: MixRunner;
 
   beforeEach(() => {
-    mix = new MixRunner();
+    mix = new MixRunner('');
     tree = new TestTree('workspaceName');
   });
 

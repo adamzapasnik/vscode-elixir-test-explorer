@@ -4,6 +4,7 @@ import { ExUnitRunner } from '../../src/ExUnitRunner';
 import { PATHS } from './fixtures/fixtures';
 import * as fixtures from './fixtures/fixtures';
 import { TestInfo, TestSuiteInfo } from 'vscode-test-adapter-api';
+import { WorkspaceFolder } from 'vscode';
 
 const expect = chai.expect;
 
@@ -11,7 +12,7 @@ describe('ExUnitRunner', async () => {
   let exUnit: ExUnitRunner;
 
   beforeEach(() => {
-    exUnit = new ExUnitRunner('my_project');
+    exUnit = new ExUnitRunner({name: 'my_project'} as WorkspaceFolder);
   });
 
   describe('load', () => {

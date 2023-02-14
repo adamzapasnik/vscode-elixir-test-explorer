@@ -26,7 +26,7 @@ export async function activate(context: vscode.ExtensionContext) {
       new TestAdapterRegistrar(
         testHub,
         (workspaceFolder) => {
-          const exUnitRunner = new ExUnitRunner(workspaceFolder.name);
+          const exUnitRunner = new ExUnitRunner(workspaceFolder);
           return new ExUnitTestAdapter(exUnitRunner, workspaceFolder, log);
         },
         log

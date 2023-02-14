@@ -1,5 +1,6 @@
 import path = require('path');
 import * as fs from 'fs';
+import { workspace, WorkspaceFolder } from 'vscode';
 import { TestSuiteInfo } from 'vscode-test-adapter-api';
 import { MixParser } from './MixParser';
 import { MixRunner } from './MixRunner';
@@ -21,10 +22,10 @@ export class ExUnitRunner {
   private mixParser: MixParser;
   private testTree: TestTree;
 
-  constructor(workspaceName: string) {
-    this.mixRunner = new MixRunner();
+  constructor(workspace: WorkspaceFolder) {
+    this.mixRunner = new MixRunner(this.getPreCommand(workspace));
     this.mixParser = new MixParser();
-    this.testTree = new TestTree(workspaceName);
+    this.testTree = new TestTree(workspace.name);
   }
 
   public cancelProcess() {
@@ -98,5 +99,10 @@ export class ExUnitRunner {
     walk(workspaceDir);
 
     return results;
+  }
+
+  private getPreCommand(folder: WorkspaceFolder): string {
+    const config = workspace.getConfiguration('elixirTestExplorer', folder);
+    return config.get('pre-command', "");
   }
 }

@@ -5,14 +5,16 @@ import * as childProcess from 'child_process';
 */
 export class MixRunner {
   private currentProcess: childProcess.ChildProcess | undefined;
+  private preCommand: string;
 
-  constructor() {
+  constructor(preCommand: string) {
     this.currentProcess = undefined;
+    this.preCommand = preCommand;
   }
 
   public async run(mixPath: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-      const command = `mix test --trace --seed=0 --only="*"`;
+      const command = this.preCommand + `mix test --trace --seed=0 --only="*"`;
 
       this.currentProcess = childProcess.exec(command, { cwd: mixPath }, (err, stdout, stderr) => {
         if (stderr.trim() === 'The --only option was given to "mix test" but no test was executed') {
@@ -31,7 +33,7 @@ export class MixRunner {
   // TODO: can these two methods not be merged? I don't understand the difference.
   public async evaluate(mixPath: string, filePath: string = ''): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-      const command = `mix test ${filePath}`;
+      const command = this.preCommand + `mix test ${filePath}`;
 
       this.currentProcess = childProcess.exec(command, { cwd: mixPath }, (_, stdout, stderr) => {
         if (stdout.includes('Paths given to "mix test" did not match any directory/file')) {

@@ -8,7 +8,7 @@ const expect = chai.expect;
 describe('MixRunner', async () => {
   describe('run', () => {
     it('run command without path executes only tests in dir', async () => {
-      const runner = new MixRunner();
+      const runner = new MixRunner('');
 
       const output = await runner.run(PATHS.simpleProject);
 
